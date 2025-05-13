@@ -72,6 +72,14 @@ function operationMatches(pattern?: EndpointMatcher) {
   };
 }
 
+function pathMatches(pattern?: EndpointMatcher) {
+  const checkMatch = typeof pattern === "function" ? pattern : patternMatches(pattern);
+  return function matcher(operationDefinition: OperationDefinition) {
+    if (!pattern) return true;
+    return checkMatch(operationDefinition.path, operationDefinition);
+  }
+}
+
 function argumentMatches(pattern?: ParameterMatcher) {
   const checkMatch = typeof pattern === 'function' ? pattern : patternMatches(pattern);
   return function matcher(argumentDefinition: ParameterDefinition) {
@@ -115,6 +123,7 @@ export async function generateApi(
     outputFile,
     isDataResponse = defaultIsDataResponse,
     filterEndpoints,
+    filterPaths,
     endpointOverrides,
     unionUndefined,
     encodePathParams = false,
@@ -126,6 +135,7 @@ export async function generateApi(
     httpResolverOptions,
     uuidHandling,
     requireAllProperties,
+    
   }: GenerationOptions
 ) {
   const v3Doc = (v3DocCache[spec] ??= await getV3Doc(spec, httpResolverOptions));
@@ -142,7 +152,9 @@ export async function generateApi(
     apiGen.preprocessComponents(apiGen.spec.components.schemas);
   }
 
-  const operationDefinitions = getOperationDefinitions(v3Doc).filter(operationMatches(filterEndpoints));
+  const operationDefinitions = getOperationDefinitions(v3Doc)
+    .filter(operationMatches(filterEndpoints))
+    .filter(pathMatches(filterPaths));
 
   const resultFile = ts.createSourceFile(
     'someFileName.ts',

@@ -126,6 +126,7 @@ export type TextMatcher = string | RegExp | (string | RegExp)[];
 export type EndpointMatcherFunction = (operationName: string, operationDefinition: OperationDefinition) => boolean;
 
 export type EndpointMatcher = TextMatcher | EndpointMatcherFunction;
+export type PathMatcher = TextMatcher | EndpointMatcherFunction;
 
 export type ParameterMatcherFunction = (parameterName: string, parameterDefinition: ParameterDefinition) => boolean;
 
@@ -134,6 +135,7 @@ export type ParameterMatcher = TextMatcher | ParameterMatcherFunction;
 export interface OutputFileOptions extends Partial<CommonOptions> {
   outputFile: string;
   filterEndpoints?: EndpointMatcher;
+  filterPaths?: PathMatcher;
   endpointOverrides?: EndpointOverrides[];
   /**
    * defaults to false
