@@ -7,7 +7,7 @@ Code Generator (adjusted by TimT)
 
 ### Introduction
 
-This is an update of the utility library meant to be used with [RTK Query](https://redux-toolkit.js.org/rtk-query/overview) that will generate a typed API client from an OpenAPI schema.
+This is an update of the utility library meant to be used with [RTK Query](https://redux-toolkit.js.org/rtk-query/overview) that will generate a typed API client from an OpenAPI schema. Note that running tsup is required to build!
 
 ### Documentation
 

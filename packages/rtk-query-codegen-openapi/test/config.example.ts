@@ -4,6 +4,8 @@ const config: ConfigFile = {
   schemaFile: './fixtures/petstore.yaml',
   apiFile: './fixtures/emptyApi.ts',
   outputFile: './tmp/example.ts',
+  requireAllProperties: false,
+  uuidHandling: null,
 };
 
 export default config;
