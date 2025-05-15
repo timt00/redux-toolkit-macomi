@@ -1,4 +1,4 @@
-import { generateEndpoints } from '@rtk-query/codegen-openapi';
+import { generateEndpoints } from '../src';
 import fs from 'node:fs/promises';
 import path, { resolve } from 'node:path';
 import { rimraf } from 'rimraf';
@@ -22,6 +22,8 @@ test('calling without `outputFile` returns the generated api', async () => {
     unionUndefined: true,
     apiFile: './fixtures/emptyApi.ts',
     schemaFile: resolve(__dirname, 'fixtures/petstore.json'),
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).toMatchSnapshot();
 });
@@ -31,6 +33,8 @@ test('should include default response type in request when includeDefault is set
     apiFile: './fixtures/emptyApi.ts',
     schemaFile: resolve(__dirname, 'fixtures/petstore.json'),
     includeDefault: true,
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   // eslint-disable-next-line no-template-curly-in-string
   expect(api).toMatch(/export type CreateUserApiResponse =[\s\S/*]+status default successful operation[\s/*]+User;/);
@@ -42,6 +46,8 @@ test('endpoint filtering', async () => {
     apiFile: './fixtures/emptyApi.ts',
     schemaFile: resolve(__dirname, 'fixtures/petstore.json'),
     filterEndpoints: ['loginUser', /Order/],
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).toMatchSnapshot('should only have endpoints loginUser, placeOrder, getOrderById, deleteOrder');
 });
@@ -52,6 +58,8 @@ test('endpoint filtering by function', async () => {
     apiFile: './fixtures/emptyApi.ts',
     schemaFile: resolve(__dirname, 'fixtures/petstore.json'),
     filterEndpoints: (name, endpoint) => name.match(/order/i) !== null && endpoint.verb === 'get',
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).toMatch(/getOrderById:/);
   expect(api).not.toMatch(/placeOrder:/);
@@ -64,6 +72,8 @@ test('negated endpoint filtering', async () => {
     apiFile: './fixtures/emptyApi.ts',
     schemaFile: resolve(__dirname, 'fixtures/petstore.json'),
     filterEndpoints: (name) => !/user/i.test(name),
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).not.toMatch(/loginUser:/);
 });
@@ -81,6 +91,8 @@ describe('endpoint overrides', () => {
           type: 'mutation',
         },
       ],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).not.toMatch(/loginUser: build.query/);
     expect(api).toMatch(/loginUser: build.mutation/);
@@ -98,6 +110,8 @@ describe('endpoint overrides', () => {
           parameterFilter: 'status',
         },
       ],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).not.toMatch(/params: {\n.*queryArg\.\w+\b(?<!\bstatus)/);
     expect(api).toMatchSnapshot('should only have the "status" parameter from the endpoints');
@@ -114,6 +128,8 @@ describe('endpoint overrides', () => {
           parameterFilter: /e/,
         },
       ],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).not.toMatch(/params: {\n.*queryArg\.[^\We]*\W/);
     expect(api).toMatch(/params: {\n.*queryArg\.[\we]*\W/);
@@ -131,6 +147,8 @@ describe('endpoint overrides', () => {
           parameterFilter: [/e/, /f/],
         },
       ],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).not.toMatch(/params: {\n.*queryArg\.[^\Wef]*\W/);
     expect(api).toMatch(/params: {\n.*queryArg\.[\wef]*\W/);
@@ -148,6 +166,8 @@ describe('endpoint overrides', () => {
           parameterFilter: (_, param) => !(param.in === 'header'),
         },
       ],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).not.toMatch(/headers: {/);
     expect(api).toMatchSnapshot('should remove any parameters from the header');
@@ -165,6 +185,8 @@ describe('endpoint overrides', () => {
           parameterFilter: () => false,
         },
       ],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
 
     const paramsMatches = (api?.match(/params:/) || []).length;
@@ -185,6 +207,8 @@ describe('option encodePathParams', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['getOrderById'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${encodeURIComponent(String(queryArg.orderId))}`');
@@ -194,6 +218,8 @@ describe('option encodePathParams', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['findPetsByStatus'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toContain('status: queryArg.status');
   });
@@ -202,6 +228,8 @@ describe('option encodePathParams', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['addPet'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toContain('body: queryArg.pet');
     expect(api).not.toContain('body: encodeURIComponent(String(queryArg.pet))');
@@ -212,6 +240,8 @@ describe('option encodePathParams', () => {
       ...config,
       flattenArg: true,
       filterEndpoints: ['getOrderById'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${encodeURIComponent(String(queryArg))}`');
@@ -222,6 +252,8 @@ describe('option encodePathParams', () => {
       ...config,
       encodePathParams: false,
       filterEndpoints: ['findPetsByStatus', 'getOrderById'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${queryArg.orderId}`');
@@ -239,6 +271,8 @@ describe('option encodeQueryParams', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['findPetsByStatus'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
 
     expect(api).toMatch(
@@ -250,6 +284,8 @@ describe('option encodeQueryParams', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['getOrderById'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${queryArg.orderId}`');
@@ -259,6 +295,8 @@ describe('option encodeQueryParams', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['addPet'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toContain('body: queryArg.pet');
     expect(api).not.toContain('body: encodeURIComponent(String(queryArg.pet))');
@@ -269,6 +307,8 @@ describe('option encodeQueryParams', () => {
       ...config,
       encodeQueryParams: false,
       filterEndpoints: ['findPetsByStatus', 'getOrderById'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toContain('status: queryArg.status');
   });
@@ -285,6 +325,8 @@ describe('option flattenArg', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['getOrderById'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${queryArg}`');
@@ -295,6 +337,8 @@ describe('option flattenArg', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['findPetsByStatus'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toContain('status: queryArg');
     expect(api).not.toContain('export type FindPetsByStatusApiArg = {');
@@ -304,6 +348,8 @@ describe('option flattenArg', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['addPet'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toMatch(/body: queryArg[^.]/);
   });
@@ -312,6 +358,8 @@ describe('option flattenArg', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: ['uploadFile'],
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toContain('queryArg.body');
   });
@@ -320,6 +368,8 @@ describe('option flattenArg', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: 'findPetsByTags',
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toMatch(/\| undefined/);
   });
@@ -328,6 +378,8 @@ describe('option flattenArg', () => {
     const api = await generateEndpoints({
       ...config,
       filterEndpoints: 'getPetById',
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).not.toMatch(/^\s*\|/);
   });
@@ -340,6 +392,8 @@ test('hooks generation', async () => {
     schemaFile: resolve(__dirname, 'fixtures/petstore.json'),
     filterEndpoints: ['getPetById', 'addPet'],
     hooks: true,
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).toContain('useGetPetByIdQuery');
   expect(api).toContain('useAddPetMutation');
@@ -358,6 +412,8 @@ it('supports granular hooks generation that includes all query types', async () 
       lazyQueries: true,
       mutations: true,
     },
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).toContain('useGetPetByIdQuery');
   expect(api).toContain('useLazyGetPetByIdQuery');
@@ -375,6 +431,8 @@ it('supports granular hooks generation with only queries', async () => {
       lazyQueries: false,
       mutations: false,
     },
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).toContain('useGetPetByIdQuery');
   expect(api).not.toContain('useLazyGetPetByIdQuery');
@@ -392,6 +450,8 @@ it('supports granular hooks generation with only lazy queries', async () => {
       lazyQueries: true,
       mutations: false,
     },
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).not.toContain('useGetPetByIdQuery');
   expect(api).toContain('useLazyGetPetByIdQuery');
@@ -409,6 +469,8 @@ it('supports granular hooks generation with only mutations', async () => {
       lazyQueries: false,
       mutations: true,
     },
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).not.toContain('useGetPetByIdQuery');
   expect(api).not.toContain('useLazyGetPetByIdQuery');
@@ -420,6 +482,8 @@ it('falls back to the `title` parameter for the body parameter name when no othe
   const api = await generateEndpoints({
     apiFile: 'fixtures/emptyApi.ts',
     schemaFile: resolve(__dirname, 'fixtures/title-as-param-name.json'),
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).not.toContain('queryArg.body');
   expect(api).toContain('queryArg.exportedEntityIds');
@@ -440,6 +504,8 @@ test('hooks generation uses overrides', async () => {
       },
     ],
     hooks: true,
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).not.toContain('useLoginUserQuery');
   expect(api).toContain('useLoginUserMutation');
@@ -451,6 +517,8 @@ test('should use brackets in a querystring urls arg, when the arg contains full 
     unionUndefined: true,
     apiFile: './fixtures/emptyApi.ts',
     schemaFile: resolve(__dirname, 'fixtures/params.json'),
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   // eslint-disable-next-line no-template-curly-in-string
   expect(api).toContain('`/api/v1/list/${queryArg["item.id"]}`');
@@ -462,6 +530,8 @@ test('duplicate parameter names must be prefixed with a path or query prefix', a
     unionUndefined: true,
     apiFile: './fixtures/emptyApi.ts',
     schemaFile: resolve(__dirname, 'fixtures/params.json'),
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   // eslint-disable-next-line no-template-curly-in-string
   expect(api).toContain('pathSomeName: string');
@@ -475,6 +545,8 @@ test('operation suffixes are applied', async () => {
     apiFile: './fixtures/emptyApi.ts',
     schemaFile: resolve(__dirname, 'fixtures/petstore.json'),
     operationNameSuffix: 'V2',
+    uuidHandling: null,
+    requireAllProperties: false,
   });
 
   expect(api).toContain('AddPetV2');
@@ -488,6 +560,8 @@ test('apiImport builds correct `import` statement', async () => {
     schemaFile: resolve(__dirname, 'fixtures/params.json'),
     filterEndpoints: [],
     apiImport: 'myApi',
+    uuidHandling: null,
+    requireAllProperties: false,
   });
   expect(api).toContain('myApi as api');
 });
@@ -512,6 +586,8 @@ describe('import paths', () => {
       filterEndpoints: [],
       hooks: true,
       tag: true,
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(await fs.readFile('./test/tmp/out.ts', 'utf8')).toContain("import { api } from '../../fixtures/emptyApi'");
   });
@@ -527,6 +603,8 @@ describe('import paths', () => {
       filterEndpoints: [],
       hooks: true,
       tag: true,
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(await fs.readFile('./test/tmp/out.ts', 'utf8')).toContain("import { api } from './emptyApi'");
   });
@@ -540,6 +618,8 @@ describe('yaml parsing', () => {
       schemaFile: 'https://petstore3.swagger.io/api/v3/openapi.yaml',
       hooks: true,
       tag: true,
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(result).toMatchSnapshot();
   });
@@ -551,6 +631,8 @@ describe('yaml parsing', () => {
       schemaFile: `./test/fixtures/petstore.yaml`,
       hooks: true,
       tag: true,
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(result).toMatchSnapshot();
   });
@@ -562,6 +644,8 @@ describe('yaml parsing', () => {
       schemaFile: './test/fixtures/fhir.yaml',
       hooks: true,
       tag: true,
+      uuidHandling: null,
+      requireAllProperties: false,
     });
 
     expect(output).toMatchSnapshot();
@@ -581,6 +665,8 @@ describe('yaml parsing', () => {
       schemaFile: './test/fixtures/fhir.yaml',
       hooks: true,
       tag: true,
+      uuidHandling: null,
+      requireAllProperties: false,
     });
 
     expect(output).toContain('"-bar-bar": queryArg["-bar-bar"],');
@@ -594,6 +680,8 @@ describe('tests from issues', () => {
       apiFile: './tmp/emptyApi.ts',
       schemaFile: './test/fixtures/issue-2002.json',
       hooks: true,
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(result).toMatchSnapshot();
   });
@@ -605,6 +693,8 @@ describe('openapi spec', () => {
       unionUndefined: true,
       schemaFile: './test/fixtures/readOnlyWriteOnly.yaml',
       apiFile: './fixtures/emptyApi.ts',
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toMatchSnapshot();
   });
@@ -617,6 +707,8 @@ describe('openapi spec', () => {
       schemaFile: './test/fixtures/readOnlyWriteOnly.yaml',
       apiFile: './fixtures/emptyApi.ts',
       mergeReadWriteOnly: true,
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toMatchSnapshot();
   });
@@ -627,7 +719,71 @@ describe('query parameters', () => {
     const api = await generateEndpoints({
       schemaFile: './test/fixtures/parameterOverride.yaml',
       apiFile: './fixtures/emptyApi.ts',
+      uuidHandling: null,
+      requireAllProperties: false,
     });
     expect(api).toMatchSnapshot();
+  });
+});
+
+describe('uuid handling', () => {
+  it('APIs with UUIDs should get guids in the code', async () => {
+    const api = await generateEndpoints({
+      schemaFile: './test/fixtures/petstore-with-guids.json',
+      apiFile: './fixtures.emptyApi.ts',
+      uuidHandling: {
+        importfile: './types/Guid',
+        typeName: 'Guid',
+      },
+      requireAllProperties: false,
+    });
+    expect(api).toContain('import { Guid } from "./types/Guid";');
+    expect(api).toContain('petId: Guid');
+  });
+});
+
+describe('require all properties', () => {
+  it('API should include all required properties', async () => {
+    const withoutRequire = await generateEndpoints({
+      schemaFile: './test/fixtures/petstore-with-optional-properties.json',
+      apiFile: './fixtures.emptyApi.ts',
+      uuidHandling: {
+        importfile: './types/Guid',
+        typeName: 'Guid',
+      },
+      requireAllProperties: false,
+    });
+    expect(withoutRequire).toContain('mySpecialProperty?: string');
+    expect(withoutRequire).not.toContain('mySpecialProperty: string');
+    const withRequire = await generateEndpoints({
+      schemaFile: './test/fixtures/petstore-with-optional-properties.json',
+      apiFile: './fixtures.emptyApi.ts',
+      uuidHandling: null,
+      requireAllProperties: true,
+    });
+    expect(withRequire).not.toContain('mySpecialProperty?: string');
+    expect(withRequire).toContain('mySpecialProperty: string');
+  });
+});
+
+describe('require paths to be filtered', () => {
+  it('API should include only the filtered paths', async () => {
+    const all = await generateEndpoints({
+      schemaFile: './test/fixtures/petstore.json',
+      apiFile: './fixtures.emptyApi.ts',
+      uuidHandling: null,
+      requireAllProperties: false,
+    });
+    const filtered = await generateEndpoints({
+      schemaFile: './test/fixtures/petstore.json',
+      apiFile: './fixtures.emptyApi.ts',
+      uuidHandling: null,
+      requireAllProperties: false,
+      filterPaths: '/pet/findByStatus',
+    });
+    expect(all).toContain('findPetsByStatus: build.query');
+    expect(all).toContain('findPetsByTags: build.query');
+    expect(filtered).toContain('findPetsByStatus: build.query');
+    expect(filtered).not.toContain('findPetsByTags: build.query');
   });
 });

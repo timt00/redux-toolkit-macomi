@@ -1,6 +1,6 @@
 {
   "name": "@timtutenel/codegen-openapi",
-  "version": "1.1.0",
+  "version": "1.1.8",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "author": "Lenz Weber, Tim Tutenel",
@@ -28,10 +28,10 @@
   },
   "homepage": "https://redux-toolkit.js.org",
   "bin": {
-    "rtk-query-codegen-openapi-macomi": "lib/bin/cli.js"
+    "rtk-query-codegen-openapi-macomi": "lib/bin/cli.mjs"
   },
   "scripts": {
-    "build": "yarn clean && tsc",
+    "build": "yarn clean && tsup",
     "clean": "rimraf lib",
     "prepare": "yarn build",
     "format": "prettier --write \"src/**/*.ts\"",

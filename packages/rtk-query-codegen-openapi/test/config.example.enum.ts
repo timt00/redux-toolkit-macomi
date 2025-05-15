@@ -5,6 +5,8 @@ const config: ConfigFile = {
   apiFile: './fixtures/emptyApi.ts',
   outputFile: './tmp/example.ts',
   useEnumType: true,
+  requireAllProperties: false,
+  uuidHandling: null,
 };
 
 export default config;

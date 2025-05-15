@@ -24,7 +24,7 @@ export default defineConfig((options): Options[] => {
       ...commonOptions,
       format: ['esm'],
       name: 'CLI Development',
-      external: ['@rtk-query/codegen-openapi'],
+      external: ['@timtutenel/codegen-openapi'],
       minify: true,
       entry: { 'bin/cli': 'src/bin/cli.ts' },
     },
