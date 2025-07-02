@@ -14,12 +14,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import ts from 'typescript';
 
 import type { ObjectPropertyDefinitions } from './codegen';
-import {
-  generateCreateApiCall,
-  generateEndpointDefinition,
-  generateImportNode,
-  generateTagTypes,
-} from './codegen';
+import { generateCreateApiCall, generateEndpointDefinition, generateImportNode, generateTagTypes } from './codegen';
 import { CustomApiGenerator } from './generators/CustomApiGenerator';
 import { generateReactHooks } from './generators/react-hooks';
 import type {
@@ -73,11 +68,11 @@ function operationMatches(pattern?: EndpointMatcher) {
 }
 
 function pathMatches(pattern?: EndpointMatcher) {
-  const checkMatch = typeof pattern === "function" ? pattern : patternMatches(pattern);
+  const checkMatch = typeof pattern === 'function' ? pattern : patternMatches(pattern);
   return function matcher(operationDefinition: OperationDefinition) {
     if (!pattern) return true;
     return checkMatch(operationDefinition.path, operationDefinition);
-  }
+  };
 }
 
 function argumentMatches(pattern?: ParameterMatcher) {
@@ -100,6 +95,17 @@ function withQueryComment<T extends ts.Node>(node: T, def: QueryArgDefinition, h
     );
   }
   return node;
+}
+
+function getAlias(apiGen: CustomApiGenerator, name: string): any {
+  for (const alias of apiGen.aliases) {
+    const aliasType = alias as ts.TypeAliasDeclaration;
+    if (aliasType) {
+      if (aliasType.name.text === name)
+        return (aliasType.type as any).members;
+    }
+  }
+  return null;
 }
 
 export function getOverrides(
@@ -135,12 +141,12 @@ export async function generateApi(
     httpResolverOptions,
     uuidHandling,
     requireAllProperties,
-    
+    transformDates,
   }: GenerationOptions
 ) {
   const v3Doc = (v3DocCache[spec] ??= await getV3Doc(spec, httpResolverOptions));
 
-  const apiGen = new CustomApiGenerator(uuidHandling, requireAllProperties, v3Doc, {
+  const apiGen = new CustomApiGenerator(uuidHandling, requireAllProperties, transformDates, v3Doc, {
     unionUndefined,
     useEnumType,
     mergeReadWriteOnly,
@@ -189,7 +195,8 @@ export async function generateApi(
   if (uuidHandling) {
     statements.push(generateImportNode(uuidHandling.importfile, { [uuidHandling.typeName]: uuidHandling.typeName }));
   }
-  statements = [...statements,
+  statements = [
+    ...statements,
     generateImportNode(apiFile, { [apiImport]: 'api' }),
     ...(tag ? [generateTagTypes({ addTagTypes: extractAllTagTypes({ operationDefinitions }) })] : []),
     generateCreateApiCall({
@@ -208,10 +215,7 @@ export async function generateApi(
       undefined,
       false,
       factory.createNamedExports([
-        factory.createExportSpecifier(
-          factory.createIdentifier(generatedApiName),
-          factory.createIdentifier(exportName)
-        ),
+        factory.createExportSpecifier(factory.createIdentifier(generatedApiName), factory.createIdentifier(exportName)),
       ]),
       undefined
     ),
@@ -232,11 +236,7 @@ export async function generateApi(
 
   return printer.printNode(
     ts.EmitHint.Unspecified,
-    factory.createSourceFile(
-      statements,
-      factory.createToken(ts.SyntaxKind.EndOfFileToken),
-      ts.NodeFlags.None
-    ),
+    factory.createSourceFile(statements, factory.createToken(ts.SyntaxKind.EndOfFileToken), ts.NodeFlags.None),
     resultFile
   );
 
@@ -266,11 +266,13 @@ export async function generateApi(
       operation,
       operation: { responses, requestBody },
     } = operationDefinition;
+
     const operationName = getOperationName({ verb, path, operation });
     const tags = tag ? getTags({ verb, pathItem }) : [];
     const isQuery = testIsQuery(verb, overrides);
 
-    const returnsJson = apiGen.getResponseType(responses) === 'json';
+    const responseType = apiGen.getResponseType(responses);
+    const returnsJson = responseType === 'json';
     let ResponseType: ts.TypeNode = factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword);
     if (returnsJson) {
       const returnTypes = Object.entries(responses || {})
@@ -357,6 +359,7 @@ export async function generateApi(
       const body = apiGen.resolve(requestBody);
       const schema = apiGen.getSchemaFromContent(body.content);
       const type = apiGen.getTypeFromSchema(schema);
+
       const schemaName = camelCase(
         (type as any).name ||
           getReferenceName(schema) ||
@@ -435,11 +438,72 @@ export async function generateApi(
         encodePathParams,
         encodeQueryParams,
       }),
+      transformResponseFn: generateTransformResponseFn({
+        responses,
+        apiGen,
+      }),
       extraEndpointsProps: isQuery
         ? generateQueryEndpointProps({ operationDefinition })
         : generateMutationEndpointProps({ operationDefinition }),
       tags,
     });
+  }
+
+  function generateTransformResponseFn({
+    responses,
+    apiGen,
+  }: {
+    responses: OpenAPIV3.ResponsesObject;
+    apiGen: CustomApiGenerator;
+  }) {
+    const rootObject = factory.createIdentifier('response');
+
+    const transforms: ts.Statement[] = [];
+    Object.entries(responses).forEach(([statusCode, response]) => {
+      if (!statusCode.startsWith('2')) return;
+
+      const responseType = apiGen.getTypeFromResponse(response);
+      console.log("PET", getAlias(apiGen, "Pet"));
+
+      //console.log('Response: ', statusCode, responseType);
+      Object.entries(response).forEach(([responseParameter, responseValue]) => {
+        if (responseParameter !== 'content') return;
+        Object.entries(responseValue).forEach(([mediaType, mediaTypeObject]) => {
+          if (mediaType !== 'application/json') return;
+
+          // mediaTypeObject should be MediaTypeObject type with 'schema' property
+          if (typeof mediaTypeObject !== 'object' || mediaTypeObject === null) return;
+
+          const schema = (mediaTypeObject as any).schema; // or define interface for MediaTypeObject
+          if (schema === null) return;
+          /*const schema = value['schema'];
+          if (!schema) return;
+          const ref = schema['$ref'];
+          if (!ref) return;
+          */
+        });
+      });
+      // response: ReferenceObject | ResponseObject
+      // Handle accordingly
+    });
+
+    return factory.createArrowFunction(
+      undefined,
+      undefined,
+      [
+        factory.createParameterDeclaration(
+          undefined,
+          undefined,
+          rootObject,
+          undefined,
+          factory.createKeywordTypeNode(ts.SyntaxKind.AnyKeyword),
+          undefined
+        ),
+      ],
+      undefined,
+      factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+      factory.createBlock([...transforms, factory.createReturnStatement(rootObject)])
+    );
   }
 
   function generateQueryFn({

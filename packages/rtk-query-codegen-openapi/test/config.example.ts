@@ -6,6 +6,7 @@ const config: ConfigFile = {
   outputFile: './tmp/example.ts',
   requireAllProperties: false,
   uuidHandling: null,
+  transformDates: false,
 };
 
 export default config;

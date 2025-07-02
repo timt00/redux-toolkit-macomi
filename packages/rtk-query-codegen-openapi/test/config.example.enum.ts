@@ -7,6 +7,7 @@ const config: ConfigFile = {
   useEnumType: true,
   requireAllProperties: false,
   uuidHandling: null,
+  transformDates: false,
 };
 
 export default config;

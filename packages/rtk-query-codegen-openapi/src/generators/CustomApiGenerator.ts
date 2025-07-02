@@ -13,11 +13,13 @@ export class CustomApiGenerator extends ApiGenerator {
 
 	uuidHandlingOptions: UuidHandlingOptions | null;
 	allPropertiesRequired: boolean;
+	transformDates: boolean;
 
-	constructor(uuidHandlingOptions: UuidHandlingOptions | null, allPropertiesRequired: boolean, spec: OpenAPIV3.Document<{}>, opts?: any) {
+	constructor(uuidHandlingOptions: UuidHandlingOptions | null, allPropertiesRequired: boolean, transformDates: boolean, spec: OpenAPIV3.Document<{}>, opts?: any) {
 		super(spec, opts);
 		this.uuidHandlingOptions = uuidHandlingOptions;
 		this.allPropertiesRequired = allPropertiesRequired;
+		this.transformDates = transformDates;
 	}
 
 	override getBaseTypeFromSchema(schema?: OpenAPIV3.ReferenceObject | (OpenAPIV3.SchemaObject & { const?: unknown; "x-enumNames"?: string[] | undefined; "x-enum-varnames"?: string[] | undefined; "x-component-ref-path"?: string | undefined; prefixItems?: (OpenAPIV3.ReferenceObject | (OpenAPIV3.SchemaObject & any))[] | undefined; }) | undefined, name?: string | undefined, onlyMode?: ('readOnly' | 'writeOnly') | undefined): TypeNode {
@@ -27,6 +29,14 @@ export class CustomApiGenerator extends ApiGenerator {
 			if (baseObj && baseObj.format) {
 				if (baseObj.format === "uuid")
 					return typescript.factory.createTypeReferenceNode(this.uuidHandlingOptions.typeName, undefined);
+			}
+		}
+
+		if (this.transformDates) {
+			const baseObj = schema as OpenAPIV3.BaseSchemaObject;
+
+			if (baseObj && baseObj.format === "date-time") {
+				return typescript.factory.createTypeReferenceNode("Date", undefined);
 			}
 		}
 
