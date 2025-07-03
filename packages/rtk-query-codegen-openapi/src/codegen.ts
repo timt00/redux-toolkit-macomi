@@ -116,6 +116,7 @@ export function generateEndpointDefinition({
   Response,
   QueryArg,
   queryFn,
+  transformResponseFn,
   endpointBuilder = defaultEndpointBuilder,
   extraEndpointsProps,
   tags,
@@ -125,11 +126,16 @@ export function generateEndpointDefinition({
   Response: ts.TypeReferenceNode;
   QueryArg: ts.TypeReferenceNode;
   queryFn: ts.Expression;
+  transformResponseFn?: ts.Expression;
   endpointBuilder?: ts.Identifier;
   extraEndpointsProps: ObjectPropertyDefinitions;
   tags: string[];
 }) {
-  const objectProperties = generateObjectProperties({ query: queryFn, ...extraEndpointsProps });
+  const objectProperties = generateObjectProperties({
+    query: queryFn,
+    transformResponse: transformResponseFn,
+    ...extraEndpointsProps,
+  });
   if (tags.length > 0) {
     objectProperties.push(
       factory.createPropertyAssignment(

@@ -14,12 +14,7 @@ import type { OpenAPIV3 } from 'openapi-types';
 import ts from 'typescript';
 
 import type { ObjectPropertyDefinitions } from './codegen';
-import {
-  generateCreateApiCall,
-  generateEndpointDefinition,
-  generateImportNode,
-  generateTagTypes,
-} from './codegen';
+import { generateCreateApiCall, generateEndpointDefinition, generateImportNode, generateTagTypes } from './codegen';
 import { CustomApiGenerator } from './generators/CustomApiGenerator';
 import { generateReactHooks } from './generators/react-hooks';
 import type {
@@ -73,11 +68,11 @@ function operationMatches(pattern?: EndpointMatcher) {
 }
 
 function pathMatches(pattern?: EndpointMatcher) {
-  const checkMatch = typeof pattern === "function" ? pattern : patternMatches(pattern);
+  const checkMatch = typeof pattern === 'function' ? pattern : patternMatches(pattern);
   return function matcher(operationDefinition: OperationDefinition) {
     if (!pattern) return true;
     return checkMatch(operationDefinition.path, operationDefinition);
-  }
+  };
 }
 
 function argumentMatches(pattern?: ParameterMatcher) {
@@ -100,6 +95,110 @@ function withQueryComment<T extends ts.Node>(node: T, def: QueryArgDefinition, h
     );
   }
   return node;
+}
+
+function createCommentStatement(comment: string): ts.Statement {
+  return ts.addSyntheticLeadingComment(
+    factory.createEmptyStatement(),
+    ts.SyntaxKind.SingleLineCommentTrivia,
+    comment,
+    true
+  );
+}
+
+const SCHEMA_PREFIX = '#/components/schemas/';
+
+function getRefObject(doc: OpenAPIV3.Document<{}>, ref: string): OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject {
+  if (ref.startsWith(SCHEMA_PREFIX)) {
+    const componentName = ref.substring(SCHEMA_PREFIX.length);
+    return doc.components!.schemas![componentName];
+  }
+  throw new Error('Not implemented ref: ' + ref);
+}
+
+function getDateConversionCode(
+  apiGen: CustomApiGenerator,
+  type: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject | boolean,
+  doc: OpenAPIV3.Document<{}>,
+  identifier: ts.Expression,
+  arrayDepth: number
+): ts.Statement[] | null {
+  if (type === true || type === false) return null;
+  const refObject = type as OpenAPIV3.ReferenceObject;
+  if (refObject.$ref) {
+    const obj = getRefObject(doc, refObject.$ref);
+    return getDateConversionCode(apiGen, obj, doc, identifier, arrayDepth);
+  } else {
+    const schemaObject = type as OpenAPIV3.SchemaObject;
+    switch (schemaObject.type) {
+      case 'array':
+        const itemExpression = factory.createIdentifier(`item${arrayDepth}`);
+        const arrayCode = getDateConversionCode(apiGen, schemaObject.items, doc, itemExpression, arrayDepth + 1);
+        if (arrayCode === null) return null;
+
+        const loopVar = ts.factory.createVariableDeclaration(itemExpression);
+        const forOfInitializer = ts.factory.createVariableDeclarationList([loopVar], ts.NodeFlags.Const);
+        const forLoop = factory.createForOfStatement(
+          undefined,
+          forOfInitializer,
+          identifier,
+          factory.createBlock(arrayCode)
+        );
+
+        const nonEmptyArrayCondition = ts.factory.createBinaryExpression(
+          identifier,
+          ts.SyntaxKind.ExclamationEqualsEqualsToken,
+          ts.factory.createIdentifier('undefined')
+        );
+
+        return [factory.createIfStatement(nonEmptyArrayCondition, forLoop)];
+      case 'boolean':
+      case 'integer':
+      case 'number':
+        return null;
+      case 'string':
+        if (schemaObject.format !== 'date-time') return null;
+        const newDateExpr = ts.factory.createNewExpression(ts.factory.createIdentifier('Date'), undefined, [
+          identifier,
+        ]);
+        // identifier might be undefined
+        const condition = ts.factory.createBinaryExpression(
+          identifier,
+          ts.SyntaxKind.EqualsEqualsEqualsToken,
+          ts.factory.createIdentifier('undefined')
+        );
+        const conditionalExpr = ts.factory.createConditionalExpression(
+          condition,
+          ts.factory.createToken(ts.SyntaxKind.QuestionToken),
+          ts.factory.createIdentifier('undefined'),
+          ts.factory.createToken(ts.SyntaxKind.ColonToken),
+          newDateExpr
+        );
+
+        return [factory.createExpressionStatement(factory.createAssignment(identifier, conditionalExpr))];
+      case 'object':
+        let result: ts.Statement[] | null = null;
+        if (schemaObject.additionalProperties)
+          result = getDateConversionCode(apiGen, schemaObject.additionalProperties, doc, identifier, arrayDepth);
+
+        if (schemaObject.properties) {
+          Object.entries(schemaObject.properties).forEach(([propertyName, propertyType]) => {
+            const propertyResult = getDateConversionCode(
+              apiGen,
+              propertyType,
+              doc,
+              factory.createPropertyAccessExpression(identifier, propertyName),
+              arrayDepth
+            );
+            if (propertyResult === null) return;
+            result = result === null ? propertyResult : [...result, ...propertyResult];
+          });
+        }
+        return result;
+    }
+  }
+
+  return null;
 }
 
 export function getOverrides(
@@ -135,12 +234,12 @@ export async function generateApi(
     httpResolverOptions,
     uuidHandling,
     requireAllProperties,
-    
+    transformDates,
   }: GenerationOptions
 ) {
   const v3Doc = (v3DocCache[spec] ??= await getV3Doc(spec, httpResolverOptions));
 
-  const apiGen = new CustomApiGenerator(uuidHandling, requireAllProperties, v3Doc, {
+  const apiGen = new CustomApiGenerator(uuidHandling, requireAllProperties, transformDates, v3Doc, {
     unionUndefined,
     useEnumType,
     mergeReadWriteOnly,
@@ -189,7 +288,8 @@ export async function generateApi(
   if (uuidHandling) {
     statements.push(generateImportNode(uuidHandling.importfile, { [uuidHandling.typeName]: uuidHandling.typeName }));
   }
-  statements = [...statements,
+  statements = [
+    ...statements,
     generateImportNode(apiFile, { [apiImport]: 'api' }),
     ...(tag ? [generateTagTypes({ addTagTypes: extractAllTagTypes({ operationDefinitions }) })] : []),
     generateCreateApiCall({
@@ -208,10 +308,7 @@ export async function generateApi(
       undefined,
       false,
       factory.createNamedExports([
-        factory.createExportSpecifier(
-          factory.createIdentifier(generatedApiName),
-          factory.createIdentifier(exportName)
-        ),
+        factory.createExportSpecifier(factory.createIdentifier(generatedApiName), factory.createIdentifier(exportName)),
       ]),
       undefined
     ),
@@ -232,11 +329,7 @@ export async function generateApi(
 
   return printer.printNode(
     ts.EmitHint.Unspecified,
-    factory.createSourceFile(
-      statements,
-      factory.createToken(ts.SyntaxKind.EndOfFileToken),
-      ts.NodeFlags.None
-    ),
+    factory.createSourceFile(statements, factory.createToken(ts.SyntaxKind.EndOfFileToken), ts.NodeFlags.None),
     resultFile
   );
 
@@ -266,11 +359,13 @@ export async function generateApi(
       operation,
       operation: { responses, requestBody },
     } = operationDefinition;
+
     const operationName = getOperationName({ verb, path, operation });
     const tags = tag ? getTags({ verb, pathItem }) : [];
     const isQuery = testIsQuery(verb, overrides);
 
-    const returnsJson = apiGen.getResponseType(responses) === 'json';
+    const responseType = apiGen.getResponseType(responses);
+    const returnsJson = responseType === 'json';
     let ResponseType: ts.TypeNode = factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword);
     if (returnsJson) {
       const returnTypes = Object.entries(responses || {})
@@ -357,6 +452,7 @@ export async function generateApi(
       const body = apiGen.resolve(requestBody);
       const schema = apiGen.getSchemaFromContent(body.content);
       const type = apiGen.getTypeFromSchema(schema);
+
       const schemaName = camelCase(
         (type as any).name ||
           getReferenceName(schema) ||
@@ -435,11 +531,66 @@ export async function generateApi(
         encodePathParams,
         encodeQueryParams,
       }),
+      transformResponseFn: transformDates
+        ? generateTransformResponseFn({
+            responses,
+            apiGen,
+            responseType: ResponseTypeName,
+            doc: v3Doc,
+          })
+        : undefined,
       extraEndpointsProps: isQuery
         ? generateQueryEndpointProps({ operationDefinition })
         : generateMutationEndpointProps({ operationDefinition }),
       tags,
     });
+  }
+
+  function generateTransformResponseFn({
+    responses,
+    apiGen,
+    responseType,
+    doc,
+  }: {
+    responses: OpenAPIV3.ResponsesObject;
+    apiGen: CustomApiGenerator;
+    responseType: ts.TypeReferenceNode;
+    doc: OpenAPIV3.Document<{}>;
+  }) {
+    const rootObject = factory.createIdentifier('response');
+
+    const transforms: ts.Statement[] = [];
+    Object.entries(responses).forEach(([statusCode, response]) => {
+      if (!statusCode.startsWith('2')) return;
+
+      Object.entries(response).forEach(([responseParameter, responseValue]) => {
+        if (responseParameter !== 'content') return;
+        Object.entries(responseValue).forEach(([mediaType, mediaTypeObject]) => {
+          if (mediaType !== 'application/json') return;
+
+          // mediaTypeObject should be MediaTypeObject type with 'schema' property
+          if (typeof mediaTypeObject !== 'object' || mediaTypeObject === null) return;
+
+          const schema = (mediaTypeObject as any).schema; // or define interface for MediaTypeObject
+          if (schema === null) return;
+
+          const responseTransforms = getDateConversionCode(apiGen, schema, doc, rootObject, 0);
+          if (responseTransforms === null) return;
+          for (const t of responseTransforms) transforms.push(t);
+        });
+      });
+    });
+
+    if (transforms.length === 0) return undefined;
+
+    return factory.createArrowFunction(
+      undefined,
+      undefined,
+      [factory.createParameterDeclaration(undefined, undefined, rootObject, undefined, responseType, undefined)],
+      undefined,
+      factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+      factory.createBlock([...transforms, factory.createReturnStatement(rootObject)])
+    );
   }
 
   function generateQueryFn({

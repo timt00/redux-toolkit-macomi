@@ -24,6 +24,7 @@ test('calling without `outputFile` returns the generated api', async () => {
     schemaFile: resolve(__dirname, 'fixtures/petstore.json'),
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).toMatchSnapshot();
 });
@@ -35,6 +36,7 @@ test('should include default response type in request when includeDefault is set
     includeDefault: true,
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   // eslint-disable-next-line no-template-curly-in-string
   expect(api).toMatch(/export type CreateUserApiResponse =[\s\S/*]+status default successful operation[\s/*]+User;/);
@@ -48,6 +50,7 @@ test('endpoint filtering', async () => {
     filterEndpoints: ['loginUser', /Order/],
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).toMatchSnapshot('should only have endpoints loginUser, placeOrder, getOrderById, deleteOrder');
 });
@@ -60,6 +63,7 @@ test('endpoint filtering by function', async () => {
     filterEndpoints: (name, endpoint) => name.match(/order/i) !== null && endpoint.verb === 'get',
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).toMatch(/getOrderById:/);
   expect(api).not.toMatch(/placeOrder:/);
@@ -74,6 +78,7 @@ test('negated endpoint filtering', async () => {
     filterEndpoints: (name) => !/user/i.test(name),
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).not.toMatch(/loginUser:/);
 });
@@ -93,6 +98,7 @@ describe('endpoint overrides', () => {
       ],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).not.toMatch(/loginUser: build.query/);
     expect(api).toMatch(/loginUser: build.mutation/);
@@ -112,6 +118,7 @@ describe('endpoint overrides', () => {
       ],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).not.toMatch(/params: {\n.*queryArg\.\w+\b(?<!\bstatus)/);
     expect(api).toMatchSnapshot('should only have the "status" parameter from the endpoints');
@@ -130,6 +137,7 @@ describe('endpoint overrides', () => {
       ],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).not.toMatch(/params: {\n.*queryArg\.[^\We]*\W/);
     expect(api).toMatch(/params: {\n.*queryArg\.[\we]*\W/);
@@ -149,6 +157,7 @@ describe('endpoint overrides', () => {
       ],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).not.toMatch(/params: {\n.*queryArg\.[^\Wef]*\W/);
     expect(api).toMatch(/params: {\n.*queryArg\.[\wef]*\W/);
@@ -168,6 +177,7 @@ describe('endpoint overrides', () => {
       ],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).not.toMatch(/headers: {/);
     expect(api).toMatchSnapshot('should remove any parameters from the header');
@@ -187,6 +197,7 @@ describe('endpoint overrides', () => {
       ],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
 
     const paramsMatches = (api?.match(/params:/) || []).length;
@@ -209,6 +220,7 @@ describe('option encodePathParams', () => {
       filterEndpoints: ['getOrderById'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${encodeURIComponent(String(queryArg.orderId))}`');
@@ -220,6 +232,7 @@ describe('option encodePathParams', () => {
       filterEndpoints: ['findPetsByStatus'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toContain('status: queryArg.status');
   });
@@ -230,6 +243,7 @@ describe('option encodePathParams', () => {
       filterEndpoints: ['addPet'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toContain('body: queryArg.pet');
     expect(api).not.toContain('body: encodeURIComponent(String(queryArg.pet))');
@@ -242,6 +256,7 @@ describe('option encodePathParams', () => {
       filterEndpoints: ['getOrderById'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${encodeURIComponent(String(queryArg))}`');
@@ -254,6 +269,7 @@ describe('option encodePathParams', () => {
       filterEndpoints: ['findPetsByStatus', 'getOrderById'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${queryArg.orderId}`');
@@ -273,6 +289,7 @@ describe('option encodeQueryParams', () => {
       filterEndpoints: ['findPetsByStatus'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
 
     expect(api).toMatch(
@@ -286,6 +303,7 @@ describe('option encodeQueryParams', () => {
       filterEndpoints: ['getOrderById'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${queryArg.orderId}`');
@@ -297,6 +315,7 @@ describe('option encodeQueryParams', () => {
       filterEndpoints: ['addPet'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toContain('body: queryArg.pet');
     expect(api).not.toContain('body: encodeURIComponent(String(queryArg.pet))');
@@ -309,6 +328,7 @@ describe('option encodeQueryParams', () => {
       filterEndpoints: ['findPetsByStatus', 'getOrderById'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toContain('status: queryArg.status');
   });
@@ -327,6 +347,7 @@ describe('option flattenArg', () => {
       filterEndpoints: ['getOrderById'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     // eslint-disable-next-line no-template-curly-in-string
     expect(api).toContain('`/store/order/${queryArg}`');
@@ -339,6 +360,7 @@ describe('option flattenArg', () => {
       filterEndpoints: ['findPetsByStatus'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toContain('status: queryArg');
     expect(api).not.toContain('export type FindPetsByStatusApiArg = {');
@@ -350,6 +372,7 @@ describe('option flattenArg', () => {
       filterEndpoints: ['addPet'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toMatch(/body: queryArg[^.]/);
   });
@@ -360,6 +383,7 @@ describe('option flattenArg', () => {
       filterEndpoints: ['uploadFile'],
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toContain('queryArg.body');
   });
@@ -370,6 +394,7 @@ describe('option flattenArg', () => {
       filterEndpoints: 'findPetsByTags',
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toMatch(/\| undefined/);
   });
@@ -380,6 +405,7 @@ describe('option flattenArg', () => {
       filterEndpoints: 'getPetById',
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).not.toMatch(/^\s*\|/);
   });
@@ -394,6 +420,7 @@ test('hooks generation', async () => {
     hooks: true,
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).toContain('useGetPetByIdQuery');
   expect(api).toContain('useAddPetMutation');
@@ -414,6 +441,7 @@ it('supports granular hooks generation that includes all query types', async () 
     },
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).toContain('useGetPetByIdQuery');
   expect(api).toContain('useLazyGetPetByIdQuery');
@@ -433,6 +461,7 @@ it('supports granular hooks generation with only queries', async () => {
     },
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).toContain('useGetPetByIdQuery');
   expect(api).not.toContain('useLazyGetPetByIdQuery');
@@ -452,6 +481,7 @@ it('supports granular hooks generation with only lazy queries', async () => {
     },
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).not.toContain('useGetPetByIdQuery');
   expect(api).toContain('useLazyGetPetByIdQuery');
@@ -471,6 +501,7 @@ it('supports granular hooks generation with only mutations', async () => {
     },
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).not.toContain('useGetPetByIdQuery');
   expect(api).not.toContain('useLazyGetPetByIdQuery');
@@ -484,6 +515,7 @@ it('falls back to the `title` parameter for the body parameter name when no othe
     schemaFile: resolve(__dirname, 'fixtures/title-as-param-name.json'),
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).not.toContain('queryArg.body');
   expect(api).toContain('queryArg.exportedEntityIds');
@@ -506,6 +538,7 @@ test('hooks generation uses overrides', async () => {
     hooks: true,
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).not.toContain('useLoginUserQuery');
   expect(api).toContain('useLoginUserMutation');
@@ -519,6 +552,7 @@ test('should use brackets in a querystring urls arg, when the arg contains full 
     schemaFile: resolve(__dirname, 'fixtures/params.json'),
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   // eslint-disable-next-line no-template-curly-in-string
   expect(api).toContain('`/api/v1/list/${queryArg["item.id"]}`');
@@ -532,6 +566,7 @@ test('duplicate parameter names must be prefixed with a path or query prefix', a
     schemaFile: resolve(__dirname, 'fixtures/params.json'),
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   // eslint-disable-next-line no-template-curly-in-string
   expect(api).toContain('pathSomeName: string');
@@ -547,6 +582,7 @@ test('operation suffixes are applied', async () => {
     operationNameSuffix: 'V2',
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
 
   expect(api).toContain('AddPetV2');
@@ -562,6 +598,7 @@ test('apiImport builds correct `import` statement', async () => {
     apiImport: 'myApi',
     uuidHandling: null,
     requireAllProperties: false,
+    transformDates: false,
   });
   expect(api).toContain('myApi as api');
 });
@@ -588,6 +625,7 @@ describe('import paths', () => {
       tag: true,
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(await fs.readFile('./test/tmp/out.ts', 'utf8')).toContain("import { api } from '../../fixtures/emptyApi'");
   });
@@ -605,6 +643,7 @@ describe('import paths', () => {
       tag: true,
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(await fs.readFile('./test/tmp/out.ts', 'utf8')).toContain("import { api } from './emptyApi'");
   });
@@ -620,6 +659,7 @@ describe('yaml parsing', () => {
       tag: true,
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(result).toMatchSnapshot();
   });
@@ -633,6 +673,7 @@ describe('yaml parsing', () => {
       tag: true,
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(result).toMatchSnapshot();
   });
@@ -646,6 +687,7 @@ describe('yaml parsing', () => {
       tag: true,
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
 
     expect(output).toMatchSnapshot();
@@ -667,6 +709,7 @@ describe('yaml parsing', () => {
       tag: true,
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
 
     expect(output).toContain('"-bar-bar": queryArg["-bar-bar"],');
@@ -682,6 +725,7 @@ describe('tests from issues', () => {
       hooks: true,
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(result).toMatchSnapshot();
   });
@@ -695,6 +739,7 @@ describe('openapi spec', () => {
       apiFile: './fixtures/emptyApi.ts',
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toMatchSnapshot();
   });
@@ -709,6 +754,7 @@ describe('openapi spec', () => {
       mergeReadWriteOnly: true,
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toMatchSnapshot();
   });
@@ -721,6 +767,7 @@ describe('query parameters', () => {
       apiFile: './fixtures/emptyApi.ts',
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toMatchSnapshot();
   });
@@ -736,9 +783,10 @@ describe('uuid handling', () => {
         typeName: 'Guid',
       },
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(api).toContain('import { Guid } from "./types/Guid";');
-    expect(api).toContain('petId: Guid');
+    expect(api).toContain('petId?: Guid');
   });
 });
 
@@ -752,6 +800,7 @@ describe('require all properties', () => {
         typeName: 'Guid',
       },
       requireAllProperties: false,
+      transformDates: false,
     });
     expect(withoutRequire).toContain('mySpecialProperty?: string');
     expect(withoutRequire).not.toContain('mySpecialProperty: string');
@@ -760,6 +809,7 @@ describe('require all properties', () => {
       apiFile: './fixtures.emptyApi.ts',
       uuidHandling: null,
       requireAllProperties: true,
+      transformDates: false,
     });
     expect(withRequire).not.toContain('mySpecialProperty?: string');
     expect(withRequire).toContain('mySpecialProperty: string');
@@ -773,6 +823,7 @@ describe('require paths to be filtered', () => {
       apiFile: './fixtures.emptyApi.ts',
       uuidHandling: null,
       requireAllProperties: false,
+      transformDates: false,
     });
     const filtered = await generateEndpoints({
       schemaFile: './test/fixtures/petstore.json',
@@ -780,10 +831,37 @@ describe('require paths to be filtered', () => {
       uuidHandling: null,
       requireAllProperties: false,
       filterPaths: '/pet/findByStatus',
+      transformDates: false,
     });
     expect(all).toContain('findPetsByStatus: build.query');
     expect(all).toContain('findPetsByTags: build.query');
     expect(filtered).toContain('findPetsByStatus: build.query');
     expect(filtered).not.toContain('findPetsByTags: build.query');
+  });
+
+  describe('require date-times to be transformed', () => {
+    it('API should include Date objects instead of string', async () => {
+      const withoutTransformation = await generateEndpoints({
+        schemaFile: './test/fixtures/petstore-with-nested-dates.yaml',
+        apiFile: './fixtures.emptyApi.ts',
+        uuidHandling: null,
+        requireAllProperties: false,
+        transformDates: false,
+      });
+      const withTransformation = await generateEndpoints({
+        schemaFile: './test/fixtures/petstore-with-nested-dates.yaml',
+        apiFile: './fixtures.emptyApi.ts',
+        uuidHandling: null,
+        requireAllProperties: false,
+        transformDates: true,
+      });
+      expect(withoutTransformation).not.toContain('shipDate?: Date');
+      expect(withTransformation).toContain('shipDate?: Date');
+
+      expect(withoutTransformation).toContain('shipDate?: string');
+      expect(withTransformation).not.toContain('shipDate?: string');
+
+      expect(withTransformation).toContain('transformResponse: (response: GetUserByNameApiResponse)');
+    });
   });
 });
