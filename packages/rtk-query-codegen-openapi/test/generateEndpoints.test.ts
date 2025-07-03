@@ -786,7 +786,7 @@ describe('uuid handling', () => {
       transformDates: false,
     });
     expect(api).toContain('import { Guid } from "./types/Guid";');
-    expect(api).toContain('petId: Guid');
+    expect(api).toContain('petId?: Guid');
   });
 });
 
@@ -842,14 +842,14 @@ describe('require paths to be filtered', () => {
   describe('require date-times to be transformed', () => {
     it('API should include Date objects instead of string', async () => {
       const withoutTransformation = await generateEndpoints({
-        schemaFile: './test/fixtures/petstore.json',
+        schemaFile: './test/fixtures/petstore-with-nested-dates.yaml',
         apiFile: './fixtures.emptyApi.ts',
         uuidHandling: null,
         requireAllProperties: false,
         transformDates: false,
       });
       const withTransformation = await generateEndpoints({
-        schemaFile: './test/fixtures/petstore.json',
+        schemaFile: './test/fixtures/petstore-with-nested-dates.yaml',
         apiFile: './fixtures.emptyApi.ts',
         uuidHandling: null,
         requireAllProperties: false,
@@ -860,6 +860,8 @@ describe('require paths to be filtered', () => {
 
       expect(withoutTransformation).toContain('shipDate?: string');
       expect(withTransformation).not.toContain('shipDate?: string');
+
+      expect(withTransformation).toContain('transformResponse: (response: GetUserByNameApiResponse)');
     });
   });
 });

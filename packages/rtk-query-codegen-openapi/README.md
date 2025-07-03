@@ -16,3 +16,15 @@ This is an update of the utility library meant to be used with [RTK Query](https
 ### Additions
 
 We added two small additions to the original package: added option to make all DTO variables required and to convert properties of format "uuid" to a custom Guid object.
+
+## Publish to npmjs
+
+To publish to npmjs, increment the version in `package.json`
+
+Then in terminal (packages/rtk-query-codegen-openapi folder), run:
+
+```console
+yarn build
+npm login
+npm publish --access public
+```
