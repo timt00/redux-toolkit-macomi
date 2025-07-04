@@ -736,6 +736,20 @@ paths:
                 $ref: '#/components/schemas/Error'
 components:
   schemas:
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        value:
+          type: number
+          format: double
+          example: 740.12
+        order:
+          type: object
+          $ref: '#/components/schemas/Order'
     Order:
       type: object
       properties:
@@ -768,6 +782,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Pet'
+        invoice:
+          type: object
+          $ref: '#/components/schemas/Invoice'
       xml:
         name: order
     Category:

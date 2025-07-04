@@ -862,6 +862,10 @@ describe('require paths to be filtered', () => {
       expect(withTransformation).not.toContain('shipDate?: string');
 
       expect(withTransformation).toContain('transformResponse: (response: GetUserByNameApiResponse)');
+      expect(withTransformation).toContain('function transformOrderResponse(order: Order)');
+      expect(withTransformation).toContain('function transformInvoiceResponse(invoice: Invoice)');
+      expect(withTransformation).toContain('if (invoice.order !== undefined) transformOrderResponse(invoice.order);');
+      expect(withTransformation).toContain('if (order.invoice !== undefined) transformInvoiceResponse(order.invoice);');
     });
   });
 });
