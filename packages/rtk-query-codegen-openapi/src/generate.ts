@@ -222,7 +222,7 @@ export async function generateApi(
       : []),
   ];
 
-  statements = [...transformationMethods.generateMethodsCode(), ...statements];
+  statements = [...transformationMethods.generateMethodsCode({ requireAllProperties }), ...statements];
 
   if (uuidHandling) {
     statements = [
@@ -480,7 +480,7 @@ export async function generateApi(
           if (identifier) {
             var transformation = new Transformation(transformationMethods, schema, doc);
             if (transformation.isEmpty()) return;
-            var code = transformation.getTransformationCode(rootObject);
+            var code = transformation.getTransformationCode(rootObject, { requireAllProperties });
             if (code === null) return;
             for (const t of code) transforms.push(t);
           } else throw new Error('Not implemented response type: ' + JSON.stringify(identifier));

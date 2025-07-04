@@ -1,6 +1,7 @@
 import type { OpenAPIV3 } from 'openapi-types';
 import { TransformationMethod } from './TransformationMethod';
 import ts from 'typescript';
+import type { TransformationContext } from './TransformationContext';
 
 export class TransformationMethods {
   readonly methodsByName: Map<string, TransformationMethod> = new Map<string, TransformationMethod>();
@@ -19,7 +20,7 @@ export class TransformationMethods {
     return method;
   }
 
-  generateMethodsCode(): ts.Statement[] {
+  generateMethodsCode(ctx: TransformationContext): ts.Statement[] {
     const code: ts.Statement[] = [];
 
     for (const [typeName, method] of this.methodsByName.entries()) {
@@ -27,7 +28,7 @@ export class TransformationMethods {
         continue;
       }
       const identifier = ts.factory.createIdentifier(typeName[0].toLowerCase() + typeName.slice(1));
-      const methodCode = method.transformation?.getTransformationCode(identifier);
+      const methodCode = method.transformation?.getTransformationCode(identifier, ctx);
       if (!methodCode || methodCode.length === 0) continue;
 
       code.push(

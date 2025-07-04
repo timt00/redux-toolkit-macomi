@@ -782,6 +782,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Pet'
+          nullable: true
         invoice:
           type: object
           $ref: '#/components/schemas/Invoice'
@@ -884,6 +885,7 @@ components:
         birthDate:
           type: string
           format: date-time
+          nullable: true
       xml:
         name: pet
     ApiResponse:
