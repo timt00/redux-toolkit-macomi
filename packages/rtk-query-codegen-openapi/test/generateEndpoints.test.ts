@@ -855,6 +855,13 @@ describe('require paths to be filtered', () => {
         requireAllProperties: false,
         transformDates: true,
       });
+      const withTransformationAndRequireAllProperties = await generateEndpoints({
+        schemaFile: './test/fixtures/petstore-with-nested-dates.yaml',
+        apiFile: './fixtures.emptyApi.ts',
+        uuidHandling: null,
+        requireAllProperties: true,
+        transformDates: true,
+      });
       expect(withoutTransformation).not.toContain('shipDate?: Date');
       expect(withTransformation).toContain('shipDate?: Date');
 
@@ -866,6 +873,12 @@ describe('require paths to be filtered', () => {
       expect(withTransformation).toContain('function transformInvoiceResponse(invoice: Invoice)');
       expect(withTransformation).toContain('if (invoice.order !== undefined) transformOrderResponse(invoice.order);');
       expect(withTransformation).toContain('if (order.invoice !== undefined) transformInvoiceResponse(order.invoice);');
+
+      expect(withTransformationAndRequireAllProperties).toBeDefined();
+      const normalized = withTransformationAndRequireAllProperties!.replace(/\s+/g, ' ');
+      expect(normalized).toContain(
+        'if (order.pets !== null) for (const child of order.pets) { if (child !== undefined) transformPetResponse(child); }'
+      );
     });
   });
 });
