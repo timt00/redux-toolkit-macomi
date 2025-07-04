@@ -1,6 +1,6 @@
 {
   "name": "@timtutenel/codegen-openapi",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "author": "Lenz Weber, Tim Tutenel",
