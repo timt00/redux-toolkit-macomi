@@ -19,7 +19,7 @@ We added two small additions to the original package: added option to make all D
 
 ## Publish to npmjs
 
-To publish to npmjs, increment the version in `package.json`
+To publish to npmjs, increment the version in `package.json` manually.
 
 Then in terminal (packages/rtk-query-codegen-openapi folder), run:
 

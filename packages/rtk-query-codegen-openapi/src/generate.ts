@@ -1,6 +1,6 @@
 import camelCase from 'lodash.camelcase';
 import path from 'node:path';
-import ApiGenerator, {
+import {
   getOperationName as _getOperationName,
   getReferenceName,
   isReference,
@@ -11,6 +11,7 @@ import ApiGenerator, {
   keywordType,
 } from 'oazapfts/generate';
 import type { OpenAPIV3 } from 'openapi-types';
+import type { Identifier } from 'typescript';
 import ts from 'typescript';
 
 import type { ObjectPropertyDefinitions } from './codegen';
@@ -28,6 +29,8 @@ import type {
 } from './types';
 import { capitalize, getOperationDefinitions, getV3Doc, removeUndefined, isQuery as testIsQuery } from './utils';
 import { factory } from './utils/factory';
+import { Transformation } from './utils/typeTransformations/Transformation';
+import { TransformationMethods } from './utils/typeTransformations/TransformationMethods';
 
 const generatedApiName = 'injectedRtkApi';
 const v3DocCache: Record<string, OpenAPIV3.Document> = {};
@@ -95,110 +98,6 @@ function withQueryComment<T extends ts.Node>(node: T, def: QueryArgDefinition, h
     );
   }
   return node;
-}
-
-function createCommentStatement(comment: string): ts.Statement {
-  return ts.addSyntheticLeadingComment(
-    factory.createEmptyStatement(),
-    ts.SyntaxKind.SingleLineCommentTrivia,
-    comment,
-    true
-  );
-}
-
-const SCHEMA_PREFIX = '#/components/schemas/';
-
-function getRefObject(doc: OpenAPIV3.Document<{}>, ref: string): OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject {
-  if (ref.startsWith(SCHEMA_PREFIX)) {
-    const componentName = ref.substring(SCHEMA_PREFIX.length);
-    return doc.components!.schemas![componentName];
-  }
-  throw new Error('Not implemented ref: ' + ref);
-}
-
-function getDateConversionCode(
-  apiGen: CustomApiGenerator,
-  type: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject | boolean,
-  doc: OpenAPIV3.Document<{}>,
-  identifier: ts.Expression,
-  arrayDepth: number
-): ts.Statement[] | null {
-  if (type === true || type === false) return null;
-  const refObject = type as OpenAPIV3.ReferenceObject;
-  if (refObject.$ref) {
-    const obj = getRefObject(doc, refObject.$ref);
-    return getDateConversionCode(apiGen, obj, doc, identifier, arrayDepth);
-  } else {
-    const schemaObject = type as OpenAPIV3.SchemaObject;
-    switch (schemaObject.type) {
-      case 'array':
-        const itemExpression = factory.createIdentifier(`item${arrayDepth}`);
-        const arrayCode = getDateConversionCode(apiGen, schemaObject.items, doc, itemExpression, arrayDepth + 1);
-        if (arrayCode === null) return null;
-
-        const loopVar = ts.factory.createVariableDeclaration(itemExpression);
-        const forOfInitializer = ts.factory.createVariableDeclarationList([loopVar], ts.NodeFlags.Const);
-        const forLoop = factory.createForOfStatement(
-          undefined,
-          forOfInitializer,
-          identifier,
-          factory.createBlock(arrayCode)
-        );
-
-        const nonEmptyArrayCondition = ts.factory.createBinaryExpression(
-          identifier,
-          ts.SyntaxKind.ExclamationEqualsEqualsToken,
-          ts.factory.createIdentifier('undefined')
-        );
-
-        return [factory.createIfStatement(nonEmptyArrayCondition, forLoop)];
-      case 'boolean':
-      case 'integer':
-      case 'number':
-        return null;
-      case 'string':
-        if (schemaObject.format !== 'date-time') return null;
-        const newDateExpr = ts.factory.createNewExpression(ts.factory.createIdentifier('Date'), undefined, [
-          identifier,
-        ]);
-        // identifier might be undefined
-        const condition = ts.factory.createBinaryExpression(
-          identifier,
-          ts.SyntaxKind.EqualsEqualsEqualsToken,
-          ts.factory.createIdentifier('undefined')
-        );
-        const conditionalExpr = ts.factory.createConditionalExpression(
-          condition,
-          ts.factory.createToken(ts.SyntaxKind.QuestionToken),
-          ts.factory.createIdentifier('undefined'),
-          ts.factory.createToken(ts.SyntaxKind.ColonToken),
-          newDateExpr
-        );
-
-        return [factory.createExpressionStatement(factory.createAssignment(identifier, conditionalExpr))];
-      case 'object':
-        let result: ts.Statement[] | null = null;
-        if (schemaObject.additionalProperties)
-          result = getDateConversionCode(apiGen, schemaObject.additionalProperties, doc, identifier, arrayDepth);
-
-        if (schemaObject.properties) {
-          Object.entries(schemaObject.properties).forEach(([propertyName, propertyType]) => {
-            const propertyResult = getDateConversionCode(
-              apiGen,
-              propertyType,
-              doc,
-              factory.createPropertyAccessExpression(identifier, propertyName),
-              arrayDepth
-            );
-            if (propertyResult === null) return;
-            result = result === null ? propertyResult : [...result, ...propertyResult];
-          });
-        }
-        return result;
-    }
-  }
-
-  return null;
 }
 
 export function getOverrides(
@@ -284,13 +183,9 @@ export async function generateApi(
   }
   apiFile = apiFile.replace(/\.[jt]sx?$/, '');
 
-  let statements: ts.Statement[] = [];
-  if (uuidHandling) {
-    statements.push(generateImportNode(uuidHandling.importfile, { [uuidHandling.typeName]: uuidHandling.typeName }));
-  }
-  statements = [
-    ...statements,
-    generateImportNode(apiFile, { [apiImport]: 'api' }),
+  const transformationMethods = new TransformationMethods();
+
+  let statements: ts.Statement[] = [
     ...(tag ? [generateTagTypes({ addTagTypes: extractAllTagTypes({ operationDefinitions }) })] : []),
     generateCreateApiCall({
       tag,
@@ -326,6 +221,16 @@ export async function generateApi(
         ]
       : []),
   ];
+
+  statements = [...transformationMethods.generateMethodsCode(), ...statements];
+
+  if (uuidHandling) {
+    statements = [
+      generateImportNode(uuidHandling.importfile, { [uuidHandling.typeName]: uuidHandling.typeName }),
+      ...statements,
+    ];
+  }
+  statements = [generateImportNode(apiFile, { [apiImport]: 'api' }), ...statements];
 
   return printer.printNode(
     ts.EmitHint.Unspecified,
@@ -534,7 +439,6 @@ export async function generateApi(
       transformResponseFn: transformDates
         ? generateTransformResponseFn({
             responses,
-            apiGen,
             responseType: ResponseTypeName,
             doc: v3Doc,
           })
@@ -548,12 +452,10 @@ export async function generateApi(
 
   function generateTransformResponseFn({
     responses,
-    apiGen,
     responseType,
     doc,
   }: {
     responses: OpenAPIV3.ResponsesObject;
-    apiGen: CustomApiGenerator;
     responseType: ts.TypeReferenceNode;
     doc: OpenAPIV3.Document<{}>;
   }) {
@@ -574,9 +476,14 @@ export async function generateApi(
           const schema = (mediaTypeObject as any).schema; // or define interface for MediaTypeObject
           if (schema === null) return;
 
-          const responseTransforms = getDateConversionCode(apiGen, schema, doc, rootObject, 0);
-          if (responseTransforms === null) return;
-          for (const t of responseTransforms) transforms.push(t);
+          const identifier = responseType.typeName as Identifier;
+          if (identifier) {
+            var transformation = new Transformation(transformationMethods, schema, doc);
+            if (transformation.isEmpty()) return;
+            var code = transformation.getTransformationCode(rootObject);
+            if (code === null) return;
+            for (const t of code) transforms.push(t);
+          } else throw new Error('Not implemented response type: ' + JSON.stringify(identifier));
         });
       });
     });
