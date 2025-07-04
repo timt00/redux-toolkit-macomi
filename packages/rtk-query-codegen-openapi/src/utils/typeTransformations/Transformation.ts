@@ -4,10 +4,15 @@ import type { TransformationMethod } from './TransformationMethod';
 import { PropertyTransformation } from './PropertyTransformation';
 import ts from 'typescript';
 import { factory } from 'typescript';
+import type { TransformationContext } from './TransformationContext';
 
 type TransformationInfo =
   | {
-      type: 'primitive' | 'date-time';
+      type: 'primitive';
+    }
+  | {
+      type: 'date-time';
+      nullable: boolean;
     }
   | {
       type: 'call-method';
@@ -16,6 +21,7 @@ type TransformationInfo =
   | {
       type: 'array';
       itemTransformation: Transformation;
+      nullable: boolean;
     }
   | {
       type: 'pass-through';
@@ -28,15 +34,6 @@ type TransformationInfo =
 
 const SCHEMA_PREFIX = '#/components/schemas/';
 
-function createCommentStatement(comment: string): ts.Statement {
-  return ts.addSyntheticLeadingComment(
-    factory.createEmptyStatement(),
-    ts.SyntaxKind.SingleLineCommentTrivia,
-    comment,
-    true
-  );
-}
-
 function getRefObject(
   doc: OpenAPIV3.Document<{}>,
   ref: string
@@ -46,6 +43,49 @@ function getRefObject(
     return [doc.components!.schemas![componentName], componentName];
   }
   throw new Error('Not implemented ref: ' + ref);
+}
+
+function addCheck(
+  identifier: ts.Identifier | ts.PropertyAccessExpression,
+  statement: ts.Statement,
+  checkFor: 'null' | 'undefined'
+): ts.IfStatement {
+  const condition = ts.factory.createBinaryExpression(
+    identifier,
+    ts.SyntaxKind.ExclamationEqualsEqualsToken,
+    ts.factory.createIdentifier(checkFor)
+  );
+  return factory.createIfStatement(condition, statement);
+}
+
+function addNullCheck(
+  identifier: ts.Identifier | ts.PropertyAccessExpression,
+  statement: ts.Statement
+): ts.IfStatement {
+  return addCheck(identifier, statement, 'null');
+}
+
+function addUndefinedCheck(
+  identifier: ts.Identifier | ts.PropertyAccessExpression,
+  statement: ts.Statement,
+  nullable: boolean
+): ts.IfStatement {
+  if (nullable) {
+    const condition = ts.factory.createLogicalAnd(
+      ts.factory.createBinaryExpression(
+        identifier,
+        ts.SyntaxKind.ExclamationEqualsEqualsToken,
+        ts.factory.createIdentifier('null')
+      ),
+      ts.factory.createBinaryExpression(
+        identifier,
+        ts.SyntaxKind.ExclamationEqualsEqualsToken,
+        ts.factory.createIdentifier('undefined')
+      )
+    );
+    return factory.createIfStatement(condition, statement);
+  }
+  return addCheck(identifier, statement, 'undefined');
 }
 
 export class Transformation {
@@ -77,6 +117,7 @@ export class Transformation {
       this.info = {
         type: 'array',
         itemTransformation: new Transformation(methods, schemaObject.items, doc),
+        nullable: schemaObject.nullable === true,
       };
       return;
     }
@@ -113,10 +154,17 @@ export class Transformation {
     }
 
     // Has to be a string type at this point
-    this.info = schemaObject.format === 'date-time' ? { type: 'date-time' } : { type: 'primitive' };
+    if (schemaObject.format !== 'date-time') {
+      this.info = { type: 'primitive' };
+      return;
+    }
+    this.info = { type: 'date-time', nullable: schemaObject.nullable === true };
   }
 
-  getTransformationCode(identifier: ts.Identifier | ts.PropertyAccessExpression): ts.Statement[] | null {
+  getTransformationCode(
+    identifier: ts.Identifier | ts.PropertyAccessExpression,
+    ctx: TransformationContext
+  ): ts.Statement[] | null {
     switch (this.info.type) {
       case 'primitive':
         return null;
@@ -136,7 +184,7 @@ export class Transformation {
       case 'array':
         const itemExpression = factory.createIdentifier('child');
 
-        var arrayCode = this.info.itemTransformation.getTransformationCode(itemExpression);
+        var arrayCode = this.info.itemTransformation.getTransformationCode(itemExpression, ctx);
         if (arrayCode === null || arrayCode.length === 0) return null;
 
         const loopVar = factory.createVariableDeclaration(itemExpression);
@@ -147,22 +195,22 @@ export class Transformation {
           identifier,
           factory.createBlock(arrayCode)
         );
+        const forExpr = ctx.requireAllProperties
+          ? this.info.nullable
+            ? addNullCheck(identifier, forLoop)
+            : forLoop
+          : addUndefinedCheck(identifier, forLoop, this.info.nullable);
 
-        const nonEmptyArrayCondition = ts.factory.createBinaryExpression(
-          identifier,
-          ts.SyntaxKind.ExclamationEqualsEqualsToken,
-          ts.factory.createIdentifier('undefined')
-        );
-
-        return [factory.createIfStatement(nonEmptyArrayCondition, forLoop)];
+        return [forExpr];
       case 'pass-through':
-        return this.info.transformation.getTransformationCode(identifier);
+        return this.info.transformation.getTransformationCode(identifier, ctx);
       case 'object':
         let propertyCode: ts.Statement[] = [];
         for (const property of this.info.propertyTransformations) {
           if (property.transformation.isEmpty()) continue;
           const code = property.transformation.getTransformationCode(
-            factory.createPropertyAccessExpression(identifier, property.propertyName)
+            factory.createPropertyAccessExpression(identifier, property.propertyName),
+            ctx
           );
           if (code === null || code.length === 0) continue;
           propertyCode = [...propertyCode, ...code];
@@ -172,21 +220,18 @@ export class Transformation {
         const newDateExpr = ts.factory.createNewExpression(ts.factory.createIdentifier('Date'), undefined, [
           identifier,
         ]);
-        // identifier might be undefined
-        const condition = ts.factory.createBinaryExpression(
-          identifier,
-          ts.SyntaxKind.EqualsEqualsEqualsToken,
-          ts.factory.createIdentifier('undefined')
-        );
-        const conditionalExpr = ts.factory.createConditionalExpression(
-          condition,
-          ts.factory.createToken(ts.SyntaxKind.QuestionToken),
-          ts.factory.createIdentifier('undefined'),
-          ts.factory.createToken(ts.SyntaxKind.ColonToken),
-          newDateExpr
+
+        const assignmentExpression = factory.createExpressionStatement(
+          factory.createAssignment(identifier, newDateExpr)
         );
 
-        return [factory.createExpressionStatement(factory.createAssignment(identifier, conditionalExpr))];
+        const expr = ctx.requireAllProperties
+          ? this.info.nullable
+            ? addNullCheck(identifier, assignmentExpression)
+            : assignmentExpression
+          : addUndefinedCheck(identifier, assignmentExpression, this.info.nullable);
+
+        return [expr];
     }
   }
 
