@@ -490,13 +490,19 @@ export async function generateApi(
 
     if (transforms.length === 0) return undefined;
 
+    // Return when undefined
+    const returnIfNullOrUndefined = factory.createIfStatement(
+      factory.createPrefixUnaryExpression(ts.SyntaxKind.ExclamationToken, rootObject),
+      factory.createReturnStatement(rootObject),
+    );
+
     return factory.createArrowFunction(
       undefined,
       undefined,
       [factory.createParameterDeclaration(undefined, undefined, rootObject, undefined, responseType, undefined)],
       undefined,
       factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-      factory.createBlock([...transforms, factory.createReturnStatement(rootObject)])
+      factory.createBlock([returnIfNullOrUndefined, ...transforms, factory.createReturnStatement(rootObject)])
     );
   }
 
