@@ -17,6 +17,15 @@ This is an update of the utility library meant to be used with [RTK Query](https
 
 We added two small additions to the original package: added option to make all DTO variables required and to convert properties of format "uuid" to a custom Guid object.
 
+## Development
+
+You can run this locally by installing yarn and then running:
+
+```console
+yarn build
+npm run cli "<pathToApi>"
+```
+
 ## Publish to npmjs
 
 To publish to npmjs, increment the version in `package.json` manually.
