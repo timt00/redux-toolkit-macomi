@@ -22,7 +22,6 @@ We added two small additions to the original package: added option to make all D
 You can run this locally by installing yarn and then running:
 
 ```console
-yarn build
 npm run cli "<pathToApi>"
 ```
 
