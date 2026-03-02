@@ -175,12 +175,7 @@ export class Transformation {
           undefined,
           [identifier]
         );
-        const callCondition = ts.factory.createBinaryExpression(
-          identifier,
-          ts.SyntaxKind.ExclamationEqualsEqualsToken,
-          ts.factory.createIdentifier('undefined')
-        );
-        return [factory.createIfStatement(callCondition, factory.createExpressionStatement(callExpression))];
+        return [factory.createIfStatement(identifier, factory.createExpressionStatement(callExpression))];
       case 'array':
         const itemExpression = factory.createIdentifier('child');
 
