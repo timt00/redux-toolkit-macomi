@@ -3,13 +3,14 @@
  */
 import type {
   ActionCreatorWithPayload,
+  Dispatch,
   Middleware,
   Reducer,
   ThunkAction,
   ThunkDispatch,
   UnknownAction,
 } from '@reduxjs/toolkit'
-import { enablePatches } from 'immer'
+import { enablePatches } from '../utils/immerImports'
 import type { Api, Module } from '../apiTypes'
 import type { BaseQueryFn } from '../baseQueryTypes'
 import type { InternalSerializeQueryArgs } from '../defaultSerializeQueryArgs'
@@ -71,6 +72,9 @@ import type {
 import { buildThunks } from './buildThunks'
 import { createSelector as _createSelector } from './rtkImports'
 import { onFocus, onFocusLost, onOffline, onOnline } from './setupListeners'
+import type { InternalMiddlewareState } from './buildMiddleware/types'
+import { getOrInsertComputed } from '../utils'
+import type { CreateSelectorFunction } from 'reselect'
 
 /**
  * `ifOlderThan` - (default: `false` | `number`) - _number is value in seconds_
@@ -245,7 +249,7 @@ export interface ApiModules<
       prefetch<EndpointName extends QueryKeys<Definitions>>(
         endpointName: EndpointName,
         arg: QueryArgFrom<Definitions[EndpointName]>,
-        options: PrefetchOptions,
+        options?: PrefetchOptions,
       ): ThunkAction<void, any, any, UnknownAction>
       /**
        * A Redux thunk action creator that, when dispatched, creates and applies a set of JSON diff/patch objects to the current state. This immediately updates the Redux state with those changes.
@@ -427,7 +431,9 @@ export interface ApiEndpointQuery<
   Definition extends QueryDefinition<any, any, any, any, any>,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Definitions extends EndpointDefinitions,
-> extends BuildThunksApiEndpointQuery<Definition>,
+>
+  extends
+    BuildThunksApiEndpointQuery<Definition>,
     BuildInitiateApiEndpointQuery<Definition>,
     BuildSelectorsApiEndpointQuery<Definition, Definitions> {
   name: string
@@ -442,7 +448,9 @@ export interface ApiEndpointInfiniteQuery<
   Definition extends InfiniteQueryDefinition<any, any, any, any, any>,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Definitions extends EndpointDefinitions,
-> extends BuildThunksApiEndpointInfiniteQuery<Definition>,
+>
+  extends
+    BuildThunksApiEndpointInfiniteQuery<Definition>,
     BuildInitiateApiEndpointInfiniteQuery<Definition>,
     BuildSelectorsApiEndpointInfiniteQuery<Definition, Definitions> {
   name: string
@@ -458,7 +466,9 @@ export interface ApiEndpointMutation<
   Definition extends MutationDefinition<any, any, any, any, any>,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   Definitions extends EndpointDefinitions,
-> extends BuildThunksApiEndpointMutation<Definition>,
+>
+  extends
+    BuildThunksApiEndpointMutation<Definition>,
     BuildInitiateApiEndpointMutation<Definition>,
     BuildSelectorsApiEndpointMutation<Definition, Definitions> {
   name: string
@@ -489,7 +499,7 @@ export interface CoreModuleOptions {
   /**
    * A selector creator (usually from `reselect`, or matching the same signature)
    */
-  createSelector?: typeof _createSelector
+  createSelector?: CreateSelectorFunction<any, any, any>
 }
 
 /**
@@ -618,19 +628,18 @@ export const coreModule = ({
     })
     safeAssign(api.internalActions, sliceActions)
 
-    const { middleware, actions: middlewareActions } = buildMiddleware({
-      reducerPath,
-      context,
-      queryThunk,
-      mutationThunk,
-      infiniteQueryThunk,
-      api,
-      assertTagType,
-      selectors,
-    })
-    safeAssign(api.util, middlewareActions)
+    const internalStateMap = new WeakMap<Dispatch, InternalMiddlewareState>()
 
-    safeAssign(api, { reducer: reducer as any, middleware })
+    const getInternalState = (dispatch: Dispatch) => {
+      const state = getOrInsertComputed(internalStateMap, dispatch, () => ({
+        currentSubscriptions: new Map(),
+        currentPolls: new Map(),
+        runningQueries: new Map(),
+        runningMutations: new Map(),
+      }))
+
+      return state
+    }
 
     const {
       buildInitiateQuery,
@@ -647,6 +656,7 @@ export const coreModule = ({
       api,
       serializeQueryArgs: serializeQueryArgs as any,
       context,
+      getInternalState,
     })
 
     safeAssign(api.util, {
@@ -655,6 +665,22 @@ export const coreModule = ({
       getRunningQueryThunk,
       getRunningQueriesThunk,
     })
+
+    const { middleware, actions: middlewareActions } = buildMiddleware({
+      reducerPath,
+      context,
+      queryThunk,
+      mutationThunk,
+      infiniteQueryThunk,
+      api,
+      assertTagType,
+      selectors,
+      getRunningQueryThunk,
+      getInternalState,
+    })
+    safeAssign(api.util, middlewareActions)
+
+    safeAssign(api, { reducer: reducer as any, middleware })
 
     return {
       name: coreModuleName,

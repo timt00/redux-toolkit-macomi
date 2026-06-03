@@ -23,7 +23,11 @@ import type {
   ReducerWithInitialState,
 } from './createReducer'
 import { createReducer } from './createReducer'
-import type { ActionReducerMapBuilder, TypedActionCreator } from './mapBuilders'
+import type {
+  ActionReducerMapBuilder,
+  AsyncThunkReducers,
+  TypedActionCreator,
+} from './mapBuilders'
 import { executeReducerBuilderCallback } from './mapBuilders'
 import type { Id, TypeGuard } from './tsHelpers'
 import { getOrInsertComputed } from './utils'
@@ -220,41 +224,43 @@ export interface CreateSliceOptions<
    *
    *
    * @example
-```ts
-import { createAction, createSlice, Action } from '@reduxjs/toolkit'
-const incrementBy = createAction<number>('incrementBy')
-const decrement = createAction('decrement')
-
-interface RejectedAction extends Action {
-  error: Error
-}
-
-function isRejectedAction(action: Action): action is RejectedAction {
-  return action.type.endsWith('rejected')
-}
-
-createSlice({
-  name: 'counter',
-  initialState: 0,
-  reducers: {},
-  extraReducers: builder => {
-    builder
-      .addCase(incrementBy, (state, action) => {
-        // action is inferred correctly here if using TS
-      })
-      // You can chain calls, or have separate `builder.addCase()` lines each time
-      .addCase(decrement, (state, action) => {})
-      // You can match a range of action types
-      .addMatcher(
-        isRejectedAction,
-        // `action` will be inferred as a RejectedAction due to isRejectedAction being defined as a type guard
-        (state, action) => {}
-      )
-      // and provide a default case if no other handlers matched
-      .addDefaultCase((state, action) => {})
-    }
-})
-```
+   * ```ts
+   * import type { Action } from '@reduxjs/toolkit';
+   * import { createAction, createSlice } from '@reduxjs/toolkit';
+   *
+   * const incrementBy = createAction<number>('incrementBy');
+   * const decrement = createAction('decrement');
+   *
+   * interface RejectedAction extends Action {
+   *   error: Error;
+   * }
+   *
+   * function isRejectedAction(action: Action): action is RejectedAction {
+   *   return action.type.endsWith('rejected');
+   * }
+   *
+   * createSlice({
+   *   name: 'counter',
+   *   initialState: 0,
+   *   reducers: {},
+   *   extraReducers: (builder) => {
+   *     builder
+   *       .addCase(incrementBy, (state, action) => {
+   *         // action is inferred correctly here if using TS
+   *       })
+   *       // You can chain calls, or have separate `builder.addCase()` lines each time
+   *       .addCase(decrement, (state, action) => {})
+   *       // You can match a range of action types
+   *       .addMatcher(
+   *         isRejectedAction,
+   *         // `action` will be inferred as a RejectedAction due to isRejectedAction being defined as a type guard
+   *         (state, action) => {},
+   *       )
+   *       // and provide a default case if no other handlers matched
+   *       .addDefaultCase((state, action) => {});
+   *   },
+   * });
+   * ```
    */
   extraReducers?: (builder: ActionReducerMapBuilder<State>) => void
 
@@ -292,7 +298,9 @@ export type CaseReducerWithPrepare<State, Action extends PayloadAction> = {
 export interface CaseReducerWithPrepareDefinition<
   State,
   Action extends PayloadAction,
-> extends CaseReducerWithPrepare<State, Action>,
+>
+  extends
+    CaseReducerWithPrepare<State, Action>,
     ReducerDefinition<ReducerType.reducerWithPrepare> {}
 
 type AsyncThunkSliceReducerConfig<
@@ -300,25 +308,7 @@ type AsyncThunkSliceReducerConfig<
   ThunkArg extends any,
   Returned = unknown,
   ThunkApiConfig extends AsyncThunkConfig = {},
-> = {
-  pending?: CaseReducer<
-    State,
-    ReturnType<AsyncThunk<Returned, ThunkArg, ThunkApiConfig>['pending']>
-  >
-  rejected?: CaseReducer<
-    State,
-    ReturnType<AsyncThunk<Returned, ThunkArg, ThunkApiConfig>['rejected']>
-  >
-  fulfilled?: CaseReducer<
-    State,
-    ReturnType<AsyncThunk<Returned, ThunkArg, ThunkApiConfig>['fulfilled']>
-  >
-  settled?: CaseReducer<
-    State,
-    ReturnType<
-      AsyncThunk<Returned, ThunkArg, ThunkApiConfig>['rejected' | 'fulfilled']
-    >
-  >
+> = AsyncThunkReducers<State, ThunkArg, Returned, ThunkApiConfig> & {
   options?: AsyncThunkOptions<ThunkArg, ThunkApiConfig>
 }
 
@@ -343,8 +333,8 @@ type PreventCircular<ThunkApiConfig> = {
 
 interface AsyncThunkCreator<
   State,
-  CurriedThunkApiConfig extends
-    PreventCircular<AsyncThunkConfig> = PreventCircular<AsyncThunkConfig>,
+  CurriedThunkApiConfig extends PreventCircular<AsyncThunkConfig> =
+    PreventCircular<AsyncThunkConfig>,
 > {
   <Returned, ThunkArg = void>(
     payloadCreator: AsyncThunkPayloadCreator<
@@ -919,11 +909,13 @@ interface ReducerHandlingContextMethods<State> {
    * @param name The key to be exposed as.
    * @param actionCreator The action to expose.
    * @example
-   * context.exposeAction("addPost", createAction<Post>("addPost"));
+   * ```ts
+   * context.exposeAction('addPost', createAction<Post>('addPost'));
    *
-   * export const { addPost } = slice.actions
+   * export const { addPost } = slice.actions;
    *
-   * dispatch(addPost(post))
+   * dispatch(addPost(post));
+   * ```
    */
   exposeAction(
     name: string,
@@ -934,11 +926,13 @@ interface ReducerHandlingContextMethods<State> {
    * @param name The key to be exposed as.
    * @param reducer The reducer to expose.
    * @example
-   * context.exposeCaseReducer("addPost", (state, action: PayloadAction<Post>) => {
-   *   state.push(action.payload)
-   * })
+   * ```ts
+   * context.exposeCaseReducer('addPost', (state, action: PayloadAction<Post>) => {
+   *   state.push(action.payload);
+   * });
    *
-   * slice.caseReducers.addPost([], addPost(post))
+   * slice.caseReducers.addPost([], addPost(post));
+   * ```
    */
   exposeCaseReducer(
     name: string,

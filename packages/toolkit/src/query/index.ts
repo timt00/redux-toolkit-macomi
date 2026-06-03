@@ -49,6 +49,7 @@ export type {
   SchemaFailureHandler,
   SchemaFailureConverter,
   SchemaFailureInfo,
+  SchemaType,
 } from './endpointDefinitions'
 export { fetchBaseQuery } from './fetchBaseQuery'
 export type {
@@ -98,7 +99,6 @@ export type { SerializeQueryArgs } from './defaultSerializeQueryArgs'
 
 export type {
   Id as TSHelpersId,
-  NoInfer as TSHelpersNoInfer,
   Override as TSHelpersOverride,
 } from './tsHelpers'
 

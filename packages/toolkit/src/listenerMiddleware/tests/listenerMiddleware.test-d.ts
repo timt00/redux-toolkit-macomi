@@ -13,6 +13,7 @@ import {
   createAction,
   createListenerMiddleware,
   createSlice,
+  isAnyOf,
   isFluxStandardAction,
 } from '@reduxjs/toolkit'
 
@@ -77,7 +78,7 @@ describe('type tests', () => {
       effect: (action, listenerApi) => {
         foundExtra = listenerApi.extra
 
-        expectTypeOf(listenerApi.extra).toMatchTypeOf(originalExtra)
+        expectTypeOf(listenerApi.extra).toExtend<typeof originalExtra>()
       },
     })
 
@@ -121,7 +122,7 @@ describe('type tests', () => {
         takeResult = await listenerApi.take(increment.match, timeout)
         expect(takeResult).toBeNull()
 
-        expectTypeOf(takeResult).toMatchTypeOf<ExpectedTakeResultType>()
+        expectTypeOf(takeResult).toExtend<ExpectedTakeResultType>()
 
         done = true
       },
@@ -242,14 +243,14 @@ describe('type tests', () => {
     startListening({
       actionCreator: incrementByAmount,
       effect: (action, listenerApi) => {
-        expectTypeOf(action).toMatchTypeOf<PayloadAction<number>>()
+        expectTypeOf(action).toExtend<PayloadAction<number>>()
       },
     })
 
     startListening({
       matcher: incrementByAmount.match,
       effect: (action, listenerApi) => {
-        expectTypeOf(action).toMatchTypeOf<PayloadAction<number>>()
+        expectTypeOf(action).toExtend<PayloadAction<number>>()
       },
     })
 
@@ -292,7 +293,7 @@ describe('type tests', () => {
       addListener({
         actionCreator: incrementByAmount,
         effect: (action, listenerApi) => {
-          expectTypeOf(action).toMatchTypeOf<PayloadAction<number>>()
+          expectTypeOf(action).toExtend<PayloadAction<number>>()
         },
       }),
     )
@@ -301,10 +302,29 @@ describe('type tests', () => {
       addListener({
         matcher: incrementByAmount.match,
         effect: (action, listenerApi) => {
-          expectTypeOf(action).toMatchTypeOf<PayloadAction<number>>()
+          expectTypeOf(action).toExtend<PayloadAction<number>>()
         },
       }),
     )
+  })
+
+  test('matcher works with interface-based custom type guards', () => {
+    interface ExtraAction extends Action {
+      payload: number
+    }
+
+    function isExtraAction(action: any): action is ExtraAction {
+      return isFluxStandardAction(action) && typeof action.payload === 'number'
+    }
+
+    const matcher = isAnyOf(isExtraAction)
+
+    startListening({
+      matcher,
+      effect: (action, listenerApi) => {
+        expectTypeOf(action).toMatchTypeOf<ExtraAction>()
+      },
+    })
   })
 
   test('Can create a pre-typed middleware', () => {
