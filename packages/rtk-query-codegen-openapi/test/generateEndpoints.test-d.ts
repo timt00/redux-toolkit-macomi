@@ -4,12 +4,18 @@ import * as path from 'node:path';
 const withoutOutputFile = {
   apiFile: './fixtures/emptyApi.ts',
   schemaFile: path.join(__dirname, 'fixtures', 'petstore.json'),
+  uuidHandling: null,
+  requireAllProperties: false,
+  transformDates: false,
 };
 
 const withOutputFile = {
   apiFile: './fixtures/emptyApi.ts',
   outputFile: './test/tmp/out.ts',
   schemaFile: path.join(__dirname, 'fixtures', 'petstore.json'),
+  uuidHandling: null,
+  requireAllProperties: false,
+  transformDates: false,
 };
 
 describe('generateEndpoints return type narrowing', () => {

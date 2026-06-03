@@ -1,5 +1,6 @@
 import camelCase from 'lodash.camelcase';
 import path from 'node:path';
+import type ApiGenerator from 'oazapfts/generate';
 import {
   getOperationName as _getOperationName,
   createPropertyAssignment,
@@ -182,6 +183,7 @@ export async function generateApi(
     mergeReadWriteOnly = false,
     httpResolverOptions,
     uuidHandling,
+    useTypeImports,
     requireAllProperties,
     transformDates,
     useUnknown = false,
@@ -300,9 +302,14 @@ export async function generateApi(
 
   statements = [...transformationMethods.generateMethodsCode({ requireAllProperties }), ...statements];
 
-  if (uuidHandling) {
+  if (uuidHandling && apiGen.hasUsedGuids) {
     statements = [
-      generateImportNode(uuidHandling.importfile, { [uuidHandling.typeName]: uuidHandling.typeName }),
+      generateImportNode(
+        uuidHandling.importfile,
+        { [uuidHandling.typeName]: uuidHandling.typeName },
+        undefined,
+        useTypeImports
+      ),
       ...statements,
     ];
   }

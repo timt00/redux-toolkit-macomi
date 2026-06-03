@@ -11,6 +11,7 @@ export class CustomApiGenerator extends ApiGenerator {
   uuidHandlingOptions: UuidHandlingOptions | null;
   allPropertiesRequired: boolean;
   transformDates: boolean;
+  hasUsedGuids: boolean = false;
 
   constructor(
     uuidHandlingOptions: UuidHandlingOptions | null,
@@ -43,8 +44,10 @@ export class CustomApiGenerator extends ApiGenerator {
       const baseObj = schema as OpenAPIV3.BaseSchemaObject;
 
       if (baseObj && baseObj.format) {
-        if (baseObj.format === 'uuid')
+        if (baseObj.format === 'uuid') {
+          this.hasUsedGuids = true;
           return typescript.factory.createTypeReferenceNode(this.uuidHandlingOptions.typeName, undefined);
+        }
       }
     }
 

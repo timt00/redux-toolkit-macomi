@@ -140,6 +140,7 @@ export interface CommonOptions {
   uuidHandling: UuidHandlingOptions | null;
   requireAllProperties: boolean;
   transformDates: boolean;
+  useTypeImports?: boolean;
 }
 
 export type TextMatcher = string | RegExp | (string | RegExp)[];

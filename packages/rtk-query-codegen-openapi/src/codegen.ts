@@ -10,11 +10,16 @@ export function generateObjectProperties(obj: ObjectPropertyDefinitions) {
     .map(([k, v]) => factory.createPropertyAssignment(factory.createIdentifier(k), v as ts.Expression));
 }
 
-export function generateImportNode(pkg: string, namedImports: Record<string, string>, defaultImportName?: string) {
+export function generateImportNode(
+  pkg: string,
+  namedImports: Record<string, string>,
+  defaultImportName?: string,
+  isTypeOnly?: boolean
+) {
   return factory.createImportDeclaration(
     undefined,
     factory.createImportClause(
-      false,
+      isTypeOnly ?? false,
       defaultImportName !== undefined ? factory.createIdentifier(defaultImportName) : undefined,
       factory.createNamedImports(
         Object.entries(namedImports).map(([propertyName, name]) =>
