@@ -13,6 +13,8 @@ This is an update of the utility library meant to be used with [RTK Query](https
 
 [View the RTK Query Code Generation docs](https://redux-toolkit.js.org/rtk-query/usage/code-generation)
 
+If you use an AI agent, run `npx @tanstack/intent@latest install` to install agent skills.
+
 ### Additions
 
 We added two small additions to the original package: added option to make all DTO variables required and to convert properties of format "uuid" to a custom Guid object.

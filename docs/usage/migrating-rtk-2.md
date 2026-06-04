@@ -50,7 +50,7 @@ We've updated the build output in several ways:
 
 - **Build output is no longer transpiled!** Instead we target modern JS syntax (ES2020)
 - Moved all build artifacts to live under `./dist/`, instead of separate top-level folders
-- The lowest Typescript version we test against is now **TS 4.7**.
+- The lowest TypeScript version we test against is now **TS 4.7**.
 
 #### Dropping UMD builds
 
@@ -92,7 +92,7 @@ To fix this, there are three options:
 
 <div class="typescript-only">
 
-#### Typescript rewrite
+#### TypeScript rewrite
 
 In 2019, we began a community-powered conversion of the Redux codebase to TypeScript. The original effort was discussed in [#3500: Port to TypeScript](https://github.com/reduxjs/redux/issues/3500), and the work was integrated in PR [#3536: Convert to TypeScript](https://github.com/reduxjs/redux/issues/3536).
 
@@ -100,7 +100,7 @@ However, the TS-converted code sat around in the repo for several years, unused 
 
 Redux core v5 is now built from that TS-converted source code. In theory, this should be almost identical in both runtime behavior and types to the 4.x build, but it's very likely that some of the changes may cause types issues.
 
-Please report any unexpected compatibility issues on [Github](https://github.com/reduxjs/redux/issues)!
+Please report any unexpected compatibility issues on [GitHub](https://github.com/reduxjs/redux/issues)!
 
 #### `AnyAction` deprecated in favour of `UnknownAction`
 
@@ -299,7 +299,7 @@ We have also removed the `getType` export, which was used to extract a type stri
 
 We've had a number of reports where RTK Query had issues around usage of `dispatch(endpoint.initiate(arg, {subscription: false}))`. There were also reports that multiple triggered lazy queries were resolving the promises at the wrong time. Both of these had the same underlying issue, which was that RTKQ wasn't tracking cache entries in these cases (intentionally). We've reworked the logic to always track cache entries (and remove them as needed), which should resolve those behavior issues.
 
-We also have had issues raised about trying to run multiple mutations in a row and how tag invalidation behaves. RTKQ now has internal logic to delay tag invalidation briefly, to allow multiple invalidations to get handled together. This is controlled by a new `invalidationBehavior: 'immediate' | 'delayed'` flag on `createApi`. The new default behavior is `'delayed'`. Set it to `'immediate'` to revert to the behavior in RTK 1.9.
+We also have had issues raised about trying to run multiple mutations in a row and how tag invalidation behaves. RTKQ now has internal logic to delay tag invalidation briefly, to allow multiple invalidations to get handled together. This is controlled by a new `invalidationBehavior: 'immediately' | 'delayed'` flag on `createApi`. The new default behavior is `'delayed'`. Set it to `'immediately'` to revert to the behavior in RTK 1.9.
 
 In RTK 1.9, we reworked RTK Query's internals to keep most of the subscription status inside the RTKQ middleware. The values are still synced to the Redux store state, but this is primarily for display by the Redux DevTools "RTK Query" panel. Related to the cache entry changes above, we've optimized how often those values get synced to the Redux state for perf.
 
@@ -839,14 +839,14 @@ createReducer(initialState, {
 })
 ```
 
-While this was convenient (and other libraries in the Redux ecosystem such as `redux-saga` and `redux-observable` have supported this to various capacities), it didn't play well with Typescript and was generally a bit too "magic".
+While this was convenient (and other libraries in the Redux ecosystem such as `redux-saga` and `redux-observable` have supported this to various capacities), it didn't play well with TypeScript and was generally a bit too "magic".
 
 ```ts
 const test = todoAdded.toString()
 //    ^? typed as string, rather than specific action type
 ```
 
-Over time, the action creator also gained a static `type` property and `match` method which were more explicit and worked better with Typescript.
+Over time, the action creator also gained a static `type` property and `match` method which were more explicit and worked better with TypeScript.
 
 ```ts
 const test = todoAdded.type
@@ -955,7 +955,7 @@ const createSlice = buildCreateSlice({
 })
 ```
 
-We're not sure how many people/libraries would actually make use of this though, so any feedback over on the [Github issue](https://github.com/reduxjs/redux-toolkit/issues/3837) is welcome!
+We're not sure how many people/libraries would actually make use of this though, so any feedback over on the [GitHub issue](https://github.com/reduxjs/redux-toolkit/issues/3837) is welcome!
 
 ### `createSlice.selector` selector factories
 
@@ -998,7 +998,7 @@ function AuthorTodos({ author }: { author: string }) {
 
 Of course, with `createSlice.selectors` this is no longer possible, as you need the selector instance when creating your slice.
 
-In 2.0.0 we have no set solution for this - a few APIs have been floated ([PR 1](https://github.com/reduxjs/redux-toolkit/pull/3671), [PR 2](https://github.com/reduxjs/redux-toolkit/pull/3836)) but nothing was decided upon. If this is something you'd like to see supported, consider providing feedback in the [Github discussion](https://github.com/reduxjs/redux-toolkit/discussions/3387)!
+In 2.0.0 we have no set solution for this - a few APIs have been floated ([PR 1](https://github.com/reduxjs/redux-toolkit/pull/3671), [PR 2](https://github.com/reduxjs/redux-toolkit/pull/3836)) but nothing was decided upon. If this is something you'd like to see supported, consider providing feedback in the [GitHub discussion](https://github.com/reduxjs/redux-toolkit/discussions/3387)!
 
 ### 3.0 - RTK Query
 

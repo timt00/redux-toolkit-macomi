@@ -173,7 +173,7 @@ type prepareHeaders = (
 
 _(optional)_
 
-A function that can be used to apply custom transformations to the data passed into [`params`](#setting-the-query-string). If you don't provide this, `params` will be given directly to `new URLSearchParams()`. With some API integrations, you may need to leverage this to use something like the [`query-string`](https://github.com/sindresorhus/query-string) library to support different array types.
+A function that can be used to apply custom transformations to the data passed into [`params`](#setting-the-query-string). If you don't provide this, `params` will be stripped of keys with `undefined` values, and then passed to `new URLSearchParams()`. With some API integrations, you may need to leverage this to use something like the [`query-string`](https://github.com/sindresorhus/query-string) library to support different array types.
 
 ### `fetchFn`
 
@@ -289,7 +289,7 @@ By default, `fetchBaseQuery` assumes that every request you make will be `json`,
 
 ### Setting the query string
 
-`fetchBaseQuery` provides a simple mechanism that converts an `object` to a serialized query string by passing the object to `new URLSearchParms()`. If this doesn't suit your needs, you have two options:
+`fetchBaseQuery` provides a simple mechanism that converts an `object` to a serialized query string by passing the object to `new URLSearchParams()`. If this doesn't suit your needs, you have two options:
 
 1. Pass the `paramsSerializer` option to `fetchBaseQuery` to apply custom transformations
 2. Build your own querystring and set it in the `url`

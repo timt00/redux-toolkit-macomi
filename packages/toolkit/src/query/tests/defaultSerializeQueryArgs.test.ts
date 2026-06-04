@@ -1,4 +1,4 @@
-import { defaultSerializeQueryArgs } from '@internal/query/defaultSerializeQueryArgs'
+import { defaultSerializeQueryArgs } from '@reduxjs/toolkit/query'
 
 const endpointDefinition: any = {}
 const endpointName = 'test'
@@ -23,7 +23,7 @@ test('number arg', () => {
   ).toMatchInlineSnapshot(`"test(5)"`)
 })
 
-test('bigint arg has non-default serialization (intead of throwing)', () => {
+test('bigint arg has non-default serialization (instead of throwing)', () => {
   expect(
     defaultSerializeQueryArgs({
       endpointDefinition,

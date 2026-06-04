@@ -87,6 +87,24 @@ yarn add react-redux
 
 The package includes a precompiled ESM build that can be used as a [`<script type="module">` tag](https://unpkg.com/@reduxjs/toolkit/dist/redux-toolkit.browser.mjs) directly in the browser.
 
+## Requirements
+
+### TypeScript
+
+Redux Toolkit follows [DefinitelyTyped's policy](https://github.com/DefinitelyTyped/DefinitelyTyped#support-window) of supporting TypeScript versions released within the past two years. As of RTK 2.11, this means we support:
+
+| RTK Version | Minimum TypeScript |
+| ----------- | ------------------ |
+| 2.x         | 5.4+               |
+| 1.9.x       | 4.7+               |
+
+<details>
+<summary>Using an older TypeScript version?</summary>
+
+If you're unable to upgrade TypeScript, RTK may still work with older versions, but you may encounter type errors or missing type inference. We strongly recommend upgrading to take advantage of improved type safety and developer experience.
+
+</details>
+
 ## What's Included
 
 Redux Toolkit includes these APIs:
@@ -141,7 +159,7 @@ The [**Redux Fundamentals tutorial**](https://redux.js.org/tutorials/fundamental
 
 ### Learn Modern Redux Livestream
 
-Redux maintainer Mark Erikson appeared on the "Learn with Jason" show to explain how we recommend using Redux today. The show includes a live-coded example app that shows how to use Redux Toolkit and React-Redux hooks with Typescript, as well as the new RTK Query data fetching APIs.
+Redux maintainer Mark Erikson appeared on the "Learn with Jason" show to explain how we recommend using Redux today. The show includes a live-coded example app that shows how to use Redux Toolkit and React-Redux hooks with TypeScript, as well as the new RTK Query data fetching APIs.
 
 See [the "Learn Modern Redux" show notes page](https://www.learnwithjason.dev/let-s-learn-modern-redux) for a transcript and links to the example app source.
 
@@ -152,6 +170,6 @@ See [the "Learn Modern Redux" show notes page](https://www.learnwithjason.dev/le
 
 ## Help and Discussion
 
-The **[#redux channel](https://discord.gg/0ZcbPKXt5bZ6au5t)** of the **[Reactiflux Discord community](http://www.reactiflux.com)** is our official resource for all questions related to learning and using Redux. Reactiflux is a great place to hang out, ask questions, and learn - come join us!
+The **[#redux channel](https://discord.gg/0ZcbPKXt5bZ6au5t)** of the **[Reactiflux Discord community](https://www.reactiflux.com)** is our official resource for all questions related to learning and using Redux. Reactiflux is a great place to hang out, ask questions, and learn - come join us!
 
 You can also ask questions on [Stack Overflow](https://stackoverflow.com) using the **[#redux tag](https://stackoverflow.com/questions/tagged/redux)**.

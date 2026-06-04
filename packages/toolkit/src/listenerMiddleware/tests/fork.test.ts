@@ -1,13 +1,15 @@
-import type { EnhancedStore } from '@reduxjs/toolkit'
-import { configureStore, createSlice, createAction } from '@reduxjs/toolkit'
-
-import type { PayloadAction } from '@reduxjs/toolkit'
 import type {
-  AbortSignalWithReason,
   ForkedTaskExecutor,
+  PayloadAction,
   TaskResult,
-} from '../types'
-import { createListenerMiddleware, TaskAbortError } from '../index'
+} from '@reduxjs/toolkit'
+import {
+  configureStore,
+  createAction,
+  createListenerMiddleware,
+  createSlice,
+  TaskAbortError,
+} from '@reduxjs/toolkit'
 import {
   listenerCancelled,
   listenerCompleted,
@@ -81,14 +83,14 @@ describe('fork', () => {
   })
 
   it('runs executors in the next microtask', async () => {
-    let hasRunSyncExector = false
+    let hasRunSyncExecutor = false
     let hasRunAsyncExecutor = false
 
     startListening({
       actionCreator: increment,
       effect: async (_, listenerApi) => {
         listenerApi.fork(() => {
-          hasRunSyncExector = true
+          hasRunSyncExecutor = true
         })
 
         listenerApi.fork(async () => {
@@ -99,12 +101,12 @@ describe('fork', () => {
 
     store.dispatch(increment())
 
-    expect(hasRunSyncExector).toBe(false)
+    expect(hasRunSyncExecutor).toBe(false)
     expect(hasRunAsyncExecutor).toBe(false)
 
     await Promise.resolve()
 
-    expect(hasRunSyncExector).toBe(true)
+    expect(hasRunSyncExecutor).toBe(true)
     expect(hasRunAsyncExecutor).toBe(true)
   })
 
@@ -382,9 +384,7 @@ describe('fork', () => {
             listenerApi.fork(
               async (forkApi) => {
                 forkApi.signal.addEventListener('abort', () => {
-                  deferredResult.resolve(
-                    (forkApi.signal as AbortSignalWithReason<unknown>).reason,
-                  )
+                  deferredResult.resolve(forkApi.signal.reason)
                 })
 
                 await forkApi.delay(10)

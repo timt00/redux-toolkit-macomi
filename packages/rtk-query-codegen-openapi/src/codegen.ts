@@ -10,11 +10,16 @@ export function generateObjectProperties(obj: ObjectPropertyDefinitions) {
     .map(([k, v]) => factory.createPropertyAssignment(factory.createIdentifier(k), v as ts.Expression));
 }
 
-export function generateImportNode(pkg: string, namedImports: Record<string, string>, defaultImportName?: string) {
+export function generateImportNode(
+  pkg: string,
+  namedImports: Record<string, string>,
+  defaultImportName?: string,
+  isTypeOnly?: boolean
+) {
   return factory.createImportDeclaration(
     undefined,
     factory.createImportClause(
-      false,
+      isTypeOnly ?? false,
       defaultImportName !== undefined ? factory.createIdentifier(defaultImportName) : undefined,
       factory.createNamedImports(
         Object.entries(namedImports).map(([propertyName, name]) =>
@@ -120,6 +125,7 @@ export function generateEndpointDefinition({
   endpointBuilder = defaultEndpointBuilder,
   extraEndpointsProps,
   tags,
+  tagOverrides,
 }: {
   operationName: string;
   type: 'query' | 'mutation';
@@ -129,18 +135,43 @@ export function generateEndpointDefinition({
   transformResponseFn?: ts.Expression;
   endpointBuilder?: ts.Identifier;
   extraEndpointsProps: ObjectPropertyDefinitions;
-  tags: string[];
+  tags?: string[];
+  tagOverrides?: { providesTags?: string[]; invalidatesTags?: string[] };
 }) {
   const objectProperties = generateObjectProperties({
     query: queryFn,
     transformResponse: transformResponseFn,
     ...extraEndpointsProps,
   });
-  if (tags.length > 0) {
+  const providesTags =
+    tagOverrides && 'providesTags' in tagOverrides ? tagOverrides.providesTags : type === 'query' ? tags : undefined;
+  const invalidatesTags =
+    tagOverrides && 'invalidatesTags' in tagOverrides
+      ? tagOverrides.invalidatesTags
+      : type === 'mutation'
+        ? tags
+        : undefined;
+
+  if (providesTags !== undefined) {
     objectProperties.push(
       factory.createPropertyAssignment(
-        factory.createIdentifier(type === 'query' ? 'providesTags' : 'invalidatesTags'),
-        factory.createArrayLiteralExpression(tags.map((tag) => factory.createStringLiteral(tag), false))
+        factory.createIdentifier('providesTags'),
+        factory.createArrayLiteralExpression(
+          providesTags.map((tag) => factory.createStringLiteral(tag)),
+          false
+        )
+      )
+    );
+  }
+
+  if (invalidatesTags !== undefined) {
+    objectProperties.push(
+      factory.createPropertyAssignment(
+        factory.createIdentifier('invalidatesTags'),
+        factory.createArrayLiteralExpression(
+          invalidatesTags.map((tag) => factory.createStringLiteral(tag)),
+          false
+        )
       )
     );
   }

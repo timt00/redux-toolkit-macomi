@@ -111,7 +111,7 @@ describe('type tests', () => {
               },
             })
 
-            expectTypeOf(query).toMatchTypeOf<
+            expectTypeOf(query).toExtend<
               QueryDefinition<'Arg', any, any, 'RetVal'>
             >()
 
@@ -178,7 +178,7 @@ describe('type tests', () => {
               },
             })
 
-            expectTypeOf(query).toMatchTypeOf<
+            expectTypeOf(query).toExtend<
               MutationDefinition<'Arg', any, any, 'RetVal'>
             >()
 
@@ -362,15 +362,13 @@ describe('type tests', () => {
           enhancedApi.endpoints.query1.initiate(),
         )
 
-        expectTypeOf(queryResponse.data).toMatchTypeOf<
-          Transformed | undefined
-        >()
+        expectTypeOf(queryResponse.data).toExtend<Transformed | undefined>()
 
         const mutationResponse = await storeRef.store.dispatch(
           enhancedApi.endpoints.mutation1.initiate(),
         )
 
-        expectTypeOf(mutationResponse).toMatchTypeOf<
+        expectTypeOf(mutationResponse).toExtend<
           | { data: Transformed }
           | { error: FetchBaseQueryError | SerializedError }
         >()
@@ -498,6 +496,7 @@ describe('type tests', () => {
           id: number
         }>()
         expectTypeOf(api.endpoints.query.Types.ResultType).toEqualTypeOf<Post>()
+        expectTypeOf(api.endpoints.query.Types.RawResultType).toBeAny()
 
         expectTypeOf(api.endpoints.query2.Types.QueryArg).toEqualTypeOf<{
           id: number
@@ -505,10 +504,14 @@ describe('type tests', () => {
         expectTypeOf(
           api.endpoints.query2.Types.ResultType,
         ).toEqualTypeOf<Post>()
+        expectTypeOf(api.endpoints.query2.Types.RawResultType).toBeAny()
 
-        expectTypeOf(api.endpoints.query3.Types.QueryArg).toEqualTypeOf<void>()
+        expectTypeOf(api.endpoints.query3.Types.QueryArg).toBeVoid()
         expectTypeOf(api.endpoints.query3.Types.ResultType).toEqualTypeOf<
           EntityState<Post, Post['id']>
+        >()
+        expectTypeOf(api.endpoints.query3.Types.RawResultType).toEqualTypeOf<
+          Post[]
         >()
       })
     })

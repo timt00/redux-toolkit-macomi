@@ -7,7 +7,6 @@ import type {
 import type {
   Api,
   ApiContext,
-  ApiEndpointInfiniteQuery,
   ApiEndpointMutation,
   ApiEndpointQuery,
   BaseQueryFn,
@@ -36,15 +35,17 @@ import type {
   SkipToken,
   SubscriptionOptions,
   TSHelpersId,
-  TSHelpersNoInfer,
   TSHelpersOverride,
 } from '@reduxjs/toolkit/query'
-import {
-  defaultSerializeQueryArgs,
-  QueryStatus,
-  skipToken,
-} from '@reduxjs/toolkit/query'
 import type { DependencyList } from 'react'
+import type { InfiniteQueryDirection } from '../core/apiState'
+import type { StartInfiniteQueryActionCreator } from '../core/buildInitiate'
+import type { SubscriptionSelectors } from '../core/buildMiddleware/index'
+import type { InfiniteData } from '../core/index'
+import { isInfiniteQueryDefinition } from '../endpointDefinitions'
+import type { UninitializedValue } from './constants'
+import { UNINITIALIZED_VALUE } from './constants'
+import type { ReactHooksModuleOptions } from './module'
 import {
   useCallback,
   useDebugValue,
@@ -53,19 +54,11 @@ import {
   useMemo,
   useRef,
   useState,
-} from 'react'
-import { shallowEqual } from 'react-redux'
-
-import type { SubscriptionSelectors } from '../core/buildMiddleware/index'
-import type { InfiniteData, InfiniteQueryConfigOptions } from '../core/index'
-import type { UninitializedValue } from './constants'
-import { UNINITIALIZED_VALUE } from './constants'
-import type { ReactHooksModuleOptions } from './module'
+} from './reactImports'
+import { shallowEqual } from './reactReduxImports'
+import { QueryStatus, skipToken } from './rtkqImports'
 import { useStableQueryArgs } from './useSerializedStableValue'
 import { useShallowStableValue } from './useShallowStableValue'
-import type { InfiniteQueryDirection } from '../core/apiState'
-import { isInfiniteQueryDefinition } from '../endpointDefinitions'
-import type { StartInfiniteQueryActionCreator } from '../core/buildInitiate'
 
 // Copy-pasted from React-Redux
 const canUseDOM = () =>
@@ -207,6 +200,19 @@ export type UseQuerySubscriptionOptions = SubscriptionOptions & {
 }
 
 /**
+ * Provides a way to reference the options accepted by the `useQuerySubscription`
+ * hook in userland code.
+ *
+ * Unlike other `Typed*` wrappers, this type has no generic parameters since
+ * {@linkcode UseQuerySubscriptionOptions} does not depend on a specific query
+ * definition.
+ *
+ * @since 2.11.3
+ * @public
+ */
+export type TypedUseQuerySubscriptionOptions = UseQuerySubscriptionOptions
+
+/**
  * A React hook that automatically triggers fetches of data from an endpoint, and 'subscribes' the component to the cached data.
  *
  * The query arg is used as a cache key. Changing the query arg will tell the hook to re-fetch the data if it does not exist in the cache already.
@@ -333,7 +339,7 @@ export type LazyQueryTrigger<D extends QueryDefinition<any, any, any, any>> = {
    * // codeblock-meta title="Using .unwrap with async await"
    * try {
    *   const payload = await getUserById(1).unwrap();
-   *   console.log('fulfilled', payload)
+   *   console.log('fulfilled', payload);
    * } catch (error) {
    *   console.error('rejected', error);
    * }
@@ -401,26 +407,26 @@ export type QueryStateSelector<
  * <caption>#### __Create a strongly-typed `selectFromResult` selector function__</caption>
  *
  * ```tsx
- * import type { TypedQueryStateSelector } from '@reduxjs/toolkit/query/react'
- * import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+ * import type { TypedQueryStateSelector } from '@reduxjs/toolkit/query/react';
+ * import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
  *
  * type Post = {
- *   id: number
- *   title: string
- * }
+ *   id: number;
+ *   title: string;
+ * };
  *
  * type PostsApiResponse = {
- *   posts: Post[]
- *   total: number
- *   skip: number
- *   limit: number
- * }
+ *   posts: Post[];
+ *   total: number;
+ *   skip: number;
+ *   limit: number;
+ * };
  *
- * type QueryArgument = number | undefined
+ * type QueryArgument = number | undefined;
  *
- * type BaseQueryFunction = ReturnType<typeof fetchBaseQuery>
+ * type BaseQueryFunction = ReturnType<typeof fetchBaseQuery>;
  *
- * type SelectedResult = Pick<PostsApiResponse, 'posts'>
+ * type SelectedResult = Pick<PostsApiResponse, 'posts'>;
  *
  * const postsApiSlice = createApi({
  *   baseQuery: fetchBaseQuery({ baseUrl: 'https://dummyjson.com/posts' }),
@@ -431,33 +437,33 @@ export type QueryStateSelector<
  *       query: (limit = 5) => `?limit=${limit}&select=title`,
  *     }),
  *   }),
- * })
+ * });
  *
- * const { useGetPostsQuery } = postsApiSlice
+ * const { useGetPostsQuery } = postsApiSlice;
  *
  * function PostById({ id }: { id: number }) {
  *   const { post } = useGetPostsQuery(undefined, {
  *     selectFromResult: (state) => ({
  *       post: state.data?.posts.find((post) => post.id === id),
  *     }),
- *   })
+ *   });
  *
- *   return <li>{post?.title}</li>
+ *   return <li>{post?.title}</li>;
  * }
  *
- * const EMPTY_ARRAY: Post[] = []
+ * const EMPTY_ARRAY: Post[] = [];
  *
  * const typedSelectFromResult: TypedQueryStateSelector<
  *   PostsApiResponse,
  *   QueryArgument,
  *   BaseQueryFunction,
  *   SelectedResult
- * > = (state) => ({ posts: state.data?.posts ?? EMPTY_ARRAY })
+ * > = (state) => ({ posts: state.data?.posts ?? EMPTY_ARRAY });
  *
  * function PostsList() {
  *   const { posts } = useGetPostsQuery(undefined, {
  *     selectFromResult: typedSelectFromResult,
- *   })
+ *   });
  *
  *   return (
  *     <div>
@@ -467,7 +473,7 @@ export type QueryStateSelector<
  *         ))}
  *       </ul>
  *     </div>
- *   )
+ *   );
  * }
  * ```
  *
@@ -552,7 +558,7 @@ export type UseQueryStateOptions<
    *   * The query will not automatically run when additional components with the same query are added that do run
    *
    * @example
-   * ```ts
+   * ```tsx
    * // codeblock-meta title="Skip example"
    * const Pokemon = ({ name, skip }: { name: string; skip: boolean }) => {
    *   const { data, error, status } = useGetPokemonByNameQuery(name, {
@@ -574,7 +580,7 @@ export type UseQueryStateOptions<
    * If the selected item is one element in a larger collection, it will disregard changes to elements in the same collection.
    *
    * @example
-   * ```ts
+   * ```tsx
    * // codeblock-meta title="Using selectFromResult to extract a single result"
    * function PostsList() {
    *   const { data: posts } = api.useGetPostsQuery();
@@ -591,7 +597,9 @@ export type UseQueryStateOptions<
    * function PostById({ id }: { id: number }) {
    *   // Will select the post with the given id, and will only rerender if the given posts data changes
    *   const { post } = api.useGetPostsQuery(undefined, {
-   *     selectFromResult: ({ data }) => ({ post: data?.find((post) => post.id === id) }),
+   *     selectFromResult: ({ data }) => ({
+   *       post: data?.find((post) => post.id === id),
+   *     }),
    *   });
    *
    *   return <li>{post?.name}</li>;
@@ -614,13 +622,13 @@ export type UseQueryStateOptions<
  * import type {
  *   SubscriptionOptions,
  *   TypedUseQueryStateOptions,
- * } from '@reduxjs/toolkit/query/react'
- * import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+ * } from '@reduxjs/toolkit/query/react';
+ * import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
  *
  * type Post = {
- *   id: number
- *   name: string
- * }
+ *   id: number;
+ *   name: string;
+ * };
  *
  * const api = createApi({
  *   baseQuery: fetchBaseQuery({ baseUrl: '/' }),
@@ -630,9 +638,9 @@ export type UseQueryStateOptions<
  *       query: () => 'posts',
  *     }),
  *   }),
- * })
+ * });
  *
- * const { useGetPostsQuery } = api
+ * const { useGetPostsQuery } = api;
  *
  * export const useGetPostsQueryWithDefaults = <
  *   SelectedResult extends Record<string, any>,
@@ -651,7 +659,7 @@ export type UseQueryStateOptions<
  *     refetchOnMountOrArgChange: true,
  *     refetchOnFocus: true,
  *     ...overrideOptions,
- *   })
+ *   });
  * ```
  *
  * @template ResultType - The type of the result `data` returned by the query.
@@ -677,7 +685,7 @@ export type TypedUseQueryStateOptions<
 export type UseQueryStateResult<
   _ extends QueryDefinition<any, any, any, any>,
   R,
-> = TSHelpersNoInfer<R>
+> = R
 
 /**
  * Helper type to manually type the result
@@ -690,12 +698,12 @@ export type TypedUseQueryStateResult<
   R = UseQueryStateDefaultResult<
     QueryDefinition<QueryArg, BaseQuery, string, ResultType, string>
   >,
-> = TSHelpersNoInfer<R>
+> = R
 
 type UseQueryStateBaseResult<D extends QueryDefinition<any, any, any, any>> =
   QuerySubState<D> & {
     /**
-     * Where `data` tries to hold data as much as possible, also re-using
+     * Where `data` tries to hold data as much as possible, also reusing
      * data from the last arguments passed into the hook, this property
      * will always contain the received data from the query, for the current query arguments.
      */
@@ -722,39 +730,58 @@ type UseQueryStateBaseResult<D extends QueryDefinition<any, any, any, any>> =
     isError: false
   }
 
+type UseQueryStateUninitialized<D extends QueryDefinition<any, any, any, any>> =
+  TSHelpersOverride<
+    Extract<UseQueryStateBaseResult<D>, { status: QueryStatus.uninitialized }>,
+    { isUninitialized: true }
+  >
+
+type UseQueryStateLoading<D extends QueryDefinition<any, any, any, any>> =
+  TSHelpersOverride<
+    UseQueryStateBaseResult<D>,
+    { isLoading: true; isFetching: boolean; data: undefined }
+  >
+
+type UseQueryStateSuccessFetching<
+  D extends QueryDefinition<any, any, any, any>,
+> = TSHelpersOverride<
+  UseQueryStateBaseResult<D>,
+  {
+    isSuccess: true
+    isFetching: true
+    error: undefined
+  } & {
+    data: ResultTypeFrom<D>
+  } & Required<Pick<UseQueryStateBaseResult<D>, 'fulfilledTimeStamp'>>
+>
+
+type UseQueryStateSuccessNotFetching<
+  D extends QueryDefinition<any, any, any, any>,
+> = TSHelpersOverride<
+  UseQueryStateBaseResult<D>,
+  {
+    isSuccess: true
+    isFetching: false
+    error: undefined
+  } & {
+    data: ResultTypeFrom<D>
+    currentData: ResultTypeFrom<D>
+  } & Required<Pick<UseQueryStateBaseResult<D>, 'fulfilledTimeStamp'>>
+>
+
+type UseQueryStateError<D extends QueryDefinition<any, any, any, any>> =
+  TSHelpersOverride<
+    UseQueryStateBaseResult<D>,
+    { isError: true } & Required<Pick<UseQueryStateBaseResult<D>, 'error'>>
+  >
+
 type UseQueryStateDefaultResult<D extends QueryDefinition<any, any, any, any>> =
   TSHelpersId<
-    | TSHelpersOverride<
-        Extract<
-          UseQueryStateBaseResult<D>,
-          { status: QueryStatus.uninitialized }
-        >,
-        { isUninitialized: true }
-      >
-    | TSHelpersOverride<
-        UseQueryStateBaseResult<D>,
-        | { isLoading: true; isFetching: boolean; data: undefined }
-        | ({
-            isSuccess: true
-            isFetching: true
-            error: undefined
-          } & Required<
-            Pick<UseQueryStateBaseResult<D>, 'data' | 'fulfilledTimeStamp'>
-          >)
-        | ({
-            isSuccess: true
-            isFetching: false
-            error: undefined
-          } & Required<
-            Pick<
-              UseQueryStateBaseResult<D>,
-              'data' | 'fulfilledTimeStamp' | 'currentData'
-            >
-          >)
-        | ({ isError: true } & Required<
-            Pick<UseQueryStateBaseResult<D>, 'error'>
-          >)
-      >
+    | UseQueryStateUninitialized<D>
+    | UseQueryStateLoading<D>
+    | UseQueryStateSuccessFetching<D>
+    | UseQueryStateSuccessNotFetching<D>
+    | UseQueryStateError<D>
   > & {
     /**
      * @deprecated Included for completeness, but discouraged.
@@ -781,7 +808,7 @@ export type LazyInfiniteQueryTrigger<
    * // codeblock-meta title="Using .unwrap with async await"
    * try {
    *   const payload = await getUserById(1).unwrap();
-   *   console.log('fulfilled', payload)
+   *   console.log('fulfilled', payload);
    * } catch (error) {
    *   console.error('rejected', error);
    * }
@@ -855,6 +882,16 @@ export type UseInfiniteQuerySubscriptionOptions<
    */
   refetchOnMountOrArgChange?: boolean | number
   initialPageParam?: PageParamFrom<D>
+  /**
+   * Defaults to `true`. When this is `true` and an infinite query endpoint is refetched
+   * (due to tag invalidation, polling, arg change configuration, or manual refetching),
+   * RTK Query will try to sequentially refetch all pages currently in the cache.
+   * When `false` only the first page will be refetched.
+   *
+   * This option applies to all automatic refetches for this subscription (polling, tag invalidation, etc.).
+   * It can be overridden on a per-call basis using the `refetch()` method.
+   */
+  refetchCachedPages?: boolean
 }
 
 export type TypedUseInfiniteQuerySubscription<
@@ -875,7 +912,13 @@ export type TypedUseInfiniteQuerySubscription<
 
 export type UseInfiniteQuerySubscriptionResult<
   D extends InfiniteQueryDefinition<any, any, any, any, any>,
-> = Pick<InfiniteQueryActionCreatorResult<D>, 'refetch'> & {
+> = {
+  refetch: (
+    options?: Pick<
+      UseInfiniteQuerySubscriptionOptions<D>,
+      'refetchCachedPages'
+    >,
+  ) => InfiniteQueryActionCreatorResult<D>
   trigger: LazyInfiniteQueryTrigger<D>
   fetchNextPage: () => InfiniteQueryActionCreatorResult<D>
   fetchPreviousPage: () => InfiniteQueryActionCreatorResult<D>
@@ -911,19 +954,17 @@ export type TypedInfiniteQueryStateSelector<
   QueryArg,
   PageParam,
   BaseQuery extends BaseQueryFn,
-  SelectedResult extends Record<
-    string,
-    any
-  > = UseInfiniteQueryStateDefaultResult<
-    InfiniteQueryDefinition<
-      QueryArg,
-      PageParam,
-      BaseQuery,
-      string,
-      ResultType,
-      string
-    >
-  >,
+  SelectedResult extends Record<string, any> =
+    UseInfiniteQueryStateDefaultResult<
+      InfiniteQueryDefinition<
+        QueryArg,
+        PageParam,
+        BaseQuery,
+        string,
+        ResultType,
+        string
+      >
+    >,
 > = InfiniteQueryStateSelector<
   SelectedResult,
   InfiniteQueryDefinition<
@@ -1047,7 +1088,10 @@ export type UseInfiniteQueryHookResult<
   D extends InfiniteQueryDefinition<any, any, any, any, any>,
   R = UseInfiniteQueryStateDefaultResult<D>,
 > = UseInfiniteQueryStateResult<D, R> &
-  Pick<UseInfiniteQuerySubscriptionResult<D>, 'refetch'>
+  Pick<
+    UseInfiniteQuerySubscriptionResult<D>,
+    'refetch' | 'fetchNextPage' | 'fetchPreviousPage'
+  >
 
 export type TypedUseInfiniteQueryHookResult<
   ResultType,
@@ -1097,7 +1141,7 @@ export type UseInfiniteQueryStateOptions<
    *   * The query will not automatically run when additional components with the same query are added that do run
    *
    * @example
-   * ```ts
+   * ```tsx
    * // codeblock-meta title="Skip example"
    * const Pokemon = ({ name, skip }: { name: string; skip: boolean }) => {
    *   const { data, error, status } = useGetPokemonByNameQuery(name, {
@@ -1120,7 +1164,7 @@ export type UseInfiniteQueryStateOptions<
    * Note that this should always return an object (not a primitive), as RTKQ adds fields to the return value.
    *
    * @example
-   * ```ts
+   * ```tsx
    * // codeblock-meta title="Using selectFromResult to extract a single result"
    * function PostsList() {
    *   const { data: posts } = api.useGetPostsQuery();
@@ -1137,7 +1181,9 @@ export type UseInfiniteQueryStateOptions<
    * function PostById({ id }: { id: number }) {
    *   // Will select the post with the given id, and will only rerender if the given posts data changes
    *   const { post } = api.useGetPostsQuery(undefined, {
-   *     selectFromResult: ({ data }) => ({ post: data?.find((post) => post.id === id) }),
+   *     selectFromResult: ({ data }) => ({
+   *       post: data?.find((post) => post.id === id),
+   *     }),
    *   });
    *
    *   return <li>{post?.name}</li>;
@@ -1152,19 +1198,17 @@ export type TypedUseInfiniteQueryStateOptions<
   QueryArg,
   PageParam,
   BaseQuery extends BaseQueryFn,
-  SelectedResult extends Record<
-    string,
-    any
-  > = UseInfiniteQueryStateDefaultResult<
-    InfiniteQueryDefinition<
-      QueryArg,
-      PageParam,
-      BaseQuery,
-      string,
-      ResultType,
-      string
-    >
-  >,
+  SelectedResult extends Record<string, any> =
+    UseInfiniteQueryStateDefaultResult<
+      InfiniteQueryDefinition<
+        QueryArg,
+        PageParam,
+        BaseQuery,
+        string,
+        ResultType,
+        string
+      >
+    >,
 > = UseInfiniteQueryStateOptions<
   InfiniteQueryDefinition<
     QueryArg,
@@ -1180,7 +1224,7 @@ export type TypedUseInfiniteQueryStateOptions<
 export type UseInfiniteQueryStateResult<
   D extends InfiniteQueryDefinition<any, any, any, any, any>,
   R = UseInfiniteQueryStateDefaultResult<D>,
-> = TSHelpersNoInfer<R>
+> = R
 
 export type TypedUseInfiniteQueryStateResult<
   ResultType,
@@ -1213,7 +1257,7 @@ type UseInfiniteQueryStateBaseResult<
   D extends InfiniteQueryDefinition<any, any, any, any, any>,
 > = InfiniteQuerySubState<D> & {
   /**
-   * Where `data` tries to hold data as much as possible, also re-using
+   * Where `data` tries to hold data as much as possible, also reusing
    * data from the last arguments passed into the hook, this property
    * will always contain the received data from the query, for the current query arguments.
    */
@@ -1238,10 +1282,10 @@ type UseInfiniteQueryStateBaseResult<
    * Query is currently in "error" state.
    */
   isError: false
-  hasNextPage: false
-  hasPreviousPage: false
-  isFetchingNextPage: false
-  isFetchingPreviousPage: false
+  hasNextPage: boolean
+  hasPreviousPage: boolean
+  isFetchingNextPage: boolean
+  isFetchingPreviousPage: boolean
 }
 
 type UseInfiniteQueryStateDefaultResult<
@@ -1303,10 +1347,34 @@ export type UseMutationStateOptions<
   fixedCacheKey?: string
 }
 
+/**
+ * Provides a way to define a "pre-typed" version of
+ * {@linkcode UseMutationStateOptions} with specific options for a given mutation.
+ *
+ * @template ResultType - The type of the result `data` returned by the mutation.
+ * @template QueryArg - The type of the argument passed into the mutation.
+ * @template BaseQuery - The type of the base query function being used.
+ * @template SelectedResult - The type of the selected result returned by the __`selectFromResult`__ function.
+ *
+ * @since 2.11.3
+ * @public
+ */
+export type TypedUseMutationStateOptions<
+  ResultType,
+  QueryArg,
+  BaseQuery extends BaseQueryFn,
+  SelectedResult extends Record<string, any> = MutationResultSelectorResult<
+    MutationDefinition<QueryArg, BaseQuery, string, ResultType, string>
+  >,
+> = UseMutationStateOptions<
+  MutationDefinition<QueryArg, BaseQuery, string, ResultType, string>,
+  SelectedResult
+>
+
 export type UseMutationStateResult<
   D extends MutationDefinition<any, any, any, any>,
   R,
-> = TSHelpersNoInfer<R> & {
+> = R & {
   originalArgs?: QueryArgFrom<D>
   /**
    * Resets the hook state to its initial `uninitialized` state.
@@ -1367,7 +1435,7 @@ export type MutationTrigger<D extends MutationDefinition<any, any, any, any>> =
      * // codeblock-meta title="Using .unwrap with async await"
      * try {
      *   const payload = await addPost({ id: 1, name: 'Example' }).unwrap();
-     *   console.log('fulfilled', payload)
+     *   console.log('fulfilled', payload);
      * } catch (error) {
      *   console.error('rejected', error);
      * }
@@ -1399,6 +1467,8 @@ const noPendingQueryStateSelector: QueryStateSelector<any, any> = (
       isUninitialized: false,
       isFetching: true,
       isLoading: selected.data !== undefined ? false : true,
+      // This is the one place where we still have to use `QueryStatus` as an enum,
+      // since it's the only reference in the React package and not in the core.
       status: QueryStatus.pending,
     } as any
   }
@@ -1457,6 +1527,15 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
     deps?: DependencyList,
   ) => void = unstable__sideEffectsInRender ? (cb) => cb() : useEffect
 
+  type UnsubscribePromiseRef = React.RefObject<
+    { unsubscribe?: () => void } | undefined
+  >
+
+  const unsubscribePromiseRef = (ref: UnsubscribePromiseRef) =>
+    ref.current?.unsubscribe?.()
+
+  const endpointDefinitions = context.endpointDefinitions
+
   return {
     buildQueryHooks,
     buildInfiniteQueryHooks,
@@ -1474,7 +1553,7 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
     // in this case, reset the hook
     if (lastResult?.endpointName && currentState.isUninitialized) {
       const { endpointName } = lastResult
-      const endpointDefinition = context.endpointDefinitions[endpointName]
+      const endpointDefinition = endpointDefinitions[endpointName]
       if (
         queryArgs !== skipToken &&
         serializeQueryArgs({
@@ -1534,7 +1613,7 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
     // in this case, reset the hook
     if (lastResult?.endpointName && currentState.isUninitialized) {
       const { endpointName } = lastResult
-      const endpointDefinition = context.endpointDefinitions[endpointName]
+      const endpointDefinition = endpointDefinitions[endpointName]
       if (
         queryArgs !== skipToken &&
         serializeQueryArgs({
@@ -1564,8 +1643,13 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
       (!lastResult || lastResult.isLoading || lastResult.isUninitialized) &&
       !hasData &&
       isFetching
-    // isSuccess = true when data is present
-    const isSuccess = currentState.isSuccess || (isFetching && hasData)
+    // isSuccess = true when data is present and we're not refetching after an error.
+    // That includes cases where the _current_ item is either actively
+    // fetching or about to fetch due to an uninitialized entry.
+    const isSuccess =
+      currentState.isSuccess ||
+      (hasData &&
+        ((isFetching && !lastResult?.isError) || currentState.isUninitialized))
 
     return {
       ...currentState,
@@ -1644,17 +1728,7 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
       subscriptionSelectorsRef.current =
         returnedValue as unknown as SubscriptionSelectors
     }
-    const stableArg = useStableQueryArgs(
-      skip ? skipToken : arg,
-      // Even if the user provided a per-endpoint `serializeQueryArgs` with
-      // a consistent return value, _here_ we want to use the default behavior
-      // so we can tell if _anything_ actually changed. Otherwise, we can end up
-      // with a case where the query args did change but the serialization doesn't,
-      // and then we never try to initiate a refetch.
-      defaultSerializeQueryArgs,
-      context.endpointDefinitions[endpointName],
-      endpointName,
-    )
+    const stableArg = useStableQueryArgs(skip ? skipToken : arg)
     const stableSubscriptionOptions = useShallowStableValue({
       refetchOnReconnect,
       refetchOnFocus,
@@ -1665,6 +1739,11 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
     const initialPageParam = (rest as UseInfiniteQuerySubscriptionOptions<any>)
       .initialPageParam
     const stableInitialPageParam = useShallowStableValue(initialPageParam)
+
+    const refetchCachedPages = (
+      rest as UseInfiniteQuerySubscriptionOptions<any>
+    ).refetchCachedPages
+    const stableRefetchCachedPages = useShallowStableValue(refetchCachedPages)
 
     /**
      * @todo Change this to `useRef<QueryActionCreatorResult<any>>(undefined)` after upgrading to React 19.
@@ -1717,11 +1796,10 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
           initiate(stableArg, {
             subscriptionOptions: stableSubscriptionOptions,
             forceRefetch: refetchOnMountOrArgChange,
-            ...(isInfiniteQueryDefinition(
-              context.endpointDefinitions[endpointName],
-            )
+            ...(isInfiniteQueryDefinition(endpointDefinitions[endpointName])
               ? {
                   initialPageParam: stableInitialPageParam,
+                  refetchCachedPages: stableRefetchCachedPages,
                 }
               : {}),
           }),
@@ -1739,6 +1817,7 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
       stableSubscriptionOptions,
       subscriptionRemoved,
       stableInitialPageParam,
+      stableRefetchCachedPages,
       endpointName,
     ])
 
@@ -1764,12 +1843,7 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
         QueryDefinition<any, any, any, any, any>,
         Definitions
       >
-      const stableArg = useStableQueryArgs(
-        skip ? skipToken : arg,
-        serializeQueryArgs,
-        context.endpointDefinitions[endpointName],
-        endpointName,
-      )
+      const stableArg = useStableQueryArgs(skip ? skipToken : arg)
 
       type ApiRootState = Parameters<ReturnType<typeof select>>[0]
 
@@ -1830,11 +1904,11 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
   }
 
   function usePromiseRefUnsubscribeOnUnmount(
-    promiseRef: React.RefObject<{ unsubscribe?: () => void } | undefined>,
+    promiseRef: UnsubscribePromiseRef,
   ) {
     useEffect(() => {
       return () => {
-        promiseRef.current?.unsubscribe?.()
+        unsubscribePromiseRef(promiseRef)
         // eslint-disable-next-line react-hooks/exhaustive-deps
         ;(promiseRef.current as any) = undefined
       }
@@ -1922,7 +1996,7 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
           let promise: QueryActionCreatorResult<any>
 
           batch(() => {
-            promiseRef.current?.unsubscribe()
+            unsubscribePromiseRef(promiseRef)
 
             promiseRef.current = promise = dispatch(
               initiate(arg, {
@@ -1952,7 +2026,7 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
       /* cleanup on unmount */
       useEffect(() => {
         return () => {
-          promiseRef?.current?.unsubscribe()
+          unsubscribePromiseRef(promiseRef)
         }
       }, [])
 
@@ -2031,12 +2105,20 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
         subscriptionOptionsRef.current = stableSubscriptionOptions
       }, [stableSubscriptionOptions])
 
+      // Extract and stabilize the hook-level refetchCachedPages option
+      const hookRefetchCachedPages = (
+        options as UseInfiniteQuerySubscriptionOptions<any>
+      ).refetchCachedPages
+      const stableHookRefetchCachedPages = useShallowStableValue(
+        hookRefetchCachedPages,
+      )
+
       const trigger: LazyInfiniteQueryTrigger<any> = useCallback(
         function (arg: unknown, direction: 'forward' | 'backward') {
           let promise: InfiniteQueryActionCreatorResult<any>
 
           batch(() => {
-            promiseRef.current?.unsubscribe()
+            unsubscribePromiseRef(promiseRef)
 
             promiseRef.current = promise = dispatch(
               (initiate as StartInfiniteQueryActionCreator<any>)(arg, {
@@ -2053,21 +2135,27 @@ export function buildHooks<Definitions extends EndpointDefinitions>({
 
       usePromiseRefUnsubscribeOnUnmount(promiseRef)
 
-      const stableArg = useStableQueryArgs(
-        options.skip ? skipToken : arg,
-        // Even if the user provided a per-endpoint `serializeQueryArgs` with
-        // a consistent return value, _here_ we want to use the default behavior
-        // so we can tell if _anything_ actually changed. Otherwise, we can end up
-        // with a case where the query args did change but the serialization doesn't,
-        // and then we never try to initiate a refetch.
-        defaultSerializeQueryArgs,
-        context.endpointDefinitions[endpointName],
-        endpointName,
-      )
+      const stableArg = useStableQueryArgs(options.skip ? skipToken : arg)
 
       const refetch = useCallback(
-        () => refetchOrErrorIfUnmounted(promiseRef),
-        [promiseRef],
+        (
+          options?: Pick<
+            UseInfiniteQuerySubscriptionOptions<any>,
+            'refetchCachedPages'
+          >,
+        ) => {
+          if (!promiseRef.current)
+            throw new Error(
+              'Cannot refetch a query that has not been started yet.',
+            )
+          // Merge per-call options with hook-level default
+          const mergedOptions = {
+            refetchCachedPages:
+              options?.refetchCachedPages ?? stableHookRefetchCachedPages,
+          }
+          return promiseRef.current.refetch(mergedOptions)
+        },
+        [promiseRef, stableHookRefetchCachedPages],
       )
 
       return useMemo(() => {

@@ -1,8 +1,9 @@
-import type { EntityAdapter } from '../index'
-import { createEntityAdapter } from '../index'
-import type { PayloadAction } from '../../createAction'
-import { configureStore } from '../../configureStore'
-import { createSlice } from '../../createSlice'
+import type { EntityAdapter, PayloadAction } from '@reduxjs/toolkit'
+import {
+  configureStore,
+  createEntityAdapter,
+  createSlice,
+} from '@reduxjs/toolkit'
 import type { BookModel } from './fixtures/book'
 
 describe('createStateOperator', () => {
@@ -22,7 +23,7 @@ describe('createStateOperator', () => {
         addOne(state, action: PayloadAction<BookModel>) {
           // Originally, having nested `produce` calls don't mutate `state` here as I would have expected.
           // (note that `state` here is actually an Immer Draft<S>, from `createReducer`)
-          // One woarkound was to return the new plain result value instead
+          // One workaround was to return the new plain result value instead
           // See https://github.com/immerjs/immer/issues/533
           // However, after tweaking `createStateOperator` to check if the argument is a draft,
           // we can just treat the operator as strictly mutating, without returning a result,
