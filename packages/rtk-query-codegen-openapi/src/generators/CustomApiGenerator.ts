@@ -5,13 +5,23 @@ import type { TypeNode } from 'typescript';
 import typescript, { __String } from 'typescript';
 
 import type { UuidHandlingOptions } from '../types';
-import { TransformationMethods } from '../utils/typeTransformations/TransformationMethods';
+import ts from 'typescript';
+import lodash, { camelCase } from 'lodash';
+
+function safeKey(value: string): string {
+  return lodash.upperFirst(
+    camelCase(value)
+      .replace(/[^a-zA-Z0-9_]/g, '_')
+      .replace(/^(\d)/, '_$1')
+  );
+}
 
 export class CustomApiGenerator extends ApiGenerator {
   uuidHandlingOptions: UuidHandlingOptions | null;
   allPropertiesRequired: boolean;
   transformDates: boolean;
   hasUsedGuids: boolean = false;
+  enums: Map<string, string[]> | undefined;
 
   constructor(
     uuidHandlingOptions: UuidHandlingOptions | null,
@@ -91,6 +101,52 @@ export class CustomApiGenerator extends ApiGenerator {
     [key: string]: OpenAPIV3.ReferenceObject | OpenAPIV3_1.ReferenceObject | SchemaObject;
   }): void {
     super.preprocessComponents(schemas);
+    this.enums ??= new Map<string, string[]>();
+    for (const schemaKey of Object.keys(schemas)) {
+      const schema = schemas[schemaKey] as any;
+      if (schema.enum) {
+        this.enums.set(schemaKey, schema.enum as string[]);
+      }
+    }
+  }
+
+  createTsEnumStatements(enumName: string): ts.Statement[] {
+    const en = this.enums?.get(enumName);
+    if (!en) throw new Error(`Enum ${enumName} not found!`);
+    const enumValuesName = `${enumName}`;
+    const constStmt = ts.factory.createVariableStatement(
+      [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
+      ts.factory.createVariableDeclarationList(
+        [
+          ts.factory.createVariableDeclaration(
+            enumValuesName,
+            undefined,
+            undefined,
+            ts.factory.createAsExpression(
+              ts.factory.createObjectLiteralExpression(
+                en.map((v) => ts.factory.createPropertyAssignment(safeKey(v), ts.factory.createStringLiteral(v))),
+                true
+              ),
+              ts.factory.createTypeReferenceNode('const')
+            )
+          ),
+        ],
+        ts.NodeFlags.Const
+      )
+    );
+    const typeAlias = ts.factory.createTypeAliasDeclaration(
+      [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
+      enumName,
+      undefined,
+      ts.factory.createIndexedAccessTypeNode(
+        ts.factory.createTypeQueryNode(ts.factory.createIdentifier(enumValuesName)),
+        ts.factory.createTypeOperatorNode(
+          ts.SyntaxKind.KeyOfKeyword,
+          ts.factory.createTypeQueryNode(ts.factory.createIdentifier(enumValuesName))
+        )
+      )
+    );
+    return [constStmt, typeAlias];
   }
 
   override resolve<T>(obj: OpenAPIV3.ReferenceObject | OpenAPIV3_1.ReferenceObject | T): T {
@@ -100,7 +156,6 @@ export class CustomApiGenerator extends ApiGenerator {
   override getTypeFromParameter(p: OpenAPIV3.ParameterObject): TypeNode {
     const node = super.getTypeFromParameter(p);
 
-    console.log('node', node);
     return node;
   }
 }

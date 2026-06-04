@@ -180,6 +180,7 @@ export async function generateApi(
     flattenArg = false,
     includeDefault = false,
     useEnumType = false,
+    useTsEnums = false,
     mergeReadWriteOnly = false,
     httpResolverOptions,
     uuidHandling,
@@ -192,6 +193,7 @@ export async function generateApi(
   }: GenerationOptions
 ) {
   const v3Doc = (v3DocCache[spec] ??= await getV3Doc(spec, httpResolverOptions));
+  if (useTsEnums) useEnumType = true;
 
   const apiGen = new CustomApiGenerator(uuidHandling, requireAllProperties, transformDates, v3Doc, {
     unionUndefined,
@@ -286,7 +288,11 @@ export async function generateApi(
           return regexConstants.length > 0 ? [alias, ...regexConstants] : [alias];
         })
       : apiGen.aliases),
-    ...apiGen.enumAliases,
+    ...apiGen.enumAliases.flatMap((stmt: ts.Statement) => {
+      if (!useTsEnums) return [stmt];
+      const name = (stmt as any).name.text;
+      return apiGen.createTsEnumStatements(name);
+    }),
     ...(hooks
       ? [
           generateReactHooks({

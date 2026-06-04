@@ -141,6 +141,7 @@ export interface CommonOptions {
   requireAllProperties: boolean;
   transformDates: boolean;
   useTypeImports?: boolean;
+  useTsEnums?: boolean;
 }
 
 export type TextMatcher = string | RegExp | (string | RegExp)[];
